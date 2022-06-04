@@ -80,23 +80,25 @@ def read_data(path):
             machines_num = data_lists[0][1]
             max_machine_per_operation = data_lists[0][2]
             jobs_id = [i for i in range(jobs_num)]
-            jobs_operations = dict()
-            jobs_operations_detile = dict()
+            jobs_operations = []
+            jobs_operations_detile = []
             for list in data_lists[1:]:
-                id = jobs_id[len(jobs_operations)]
-                jobs_operations[id] = list.pop(0)
+                operations_of_this_job = list.pop(0)
+                jobs_operations[id] = operations_of_this_job
                 current_job_operations_detile = []
                 while len(list) != 0:
-                    current_operation_detile = [0 for i in range(machines_num)]
+                    current_operation_detile = [
+                        -1 for i in range(machines_num)]
                     machine_can_operation_num = list.pop(0)
                     for i in range(machine_can_operation_num):
                         position = list.pop(0)-1
                         current_operation_detile[position] = list.pop(0)
                     current_job_operations_detile.append(
                         current_operation_detile)
-                current_job_operations_detile = np.matrix(
-                    current_job_operations_detile)
-                jobs_operations_detile[id] = current_job_operations_detile
+                jobs_operations_detile.append(current_job_operations_detile)
+            origial_data = np.array(origial_data)
+            jobs_operations = np.array(jobs_operations)
+            jobs_operations_detile = np.array(jobs_operations)
         return FJSP_Data(path, jobs_num, machines_num, max_machine_per_operation, jobs_id, origial_data, jobs_operations, jobs_operations_detile)
 
 
