@@ -1,10 +1,13 @@
-from data_read_copy import read_data
+from colorama import init
+from read_data import read_data
 from FJSP_Data import FJSP_Data
-from Gene import Gene
-
-data_path = 'Monaldo\Fjsp\Job_Data\Barnes\Text\mt10c1.txt'
+from population import population
+import time
+import numpy as np
+data_path = 'Monaldo\Fjsp\Job_Data\Brandimarte_Data\Text\Mk09.fjs'
 
 data = read_data(data_path)
 #data.display_info(True)
-encode = Gene(data)
-encode.show()
+begin_time = time.time()
+encode = population(data, 2000)
+print(time.time()-begin_time)

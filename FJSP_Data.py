@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class FJSP_Data:
     '''
     数据
@@ -27,12 +30,27 @@ class FJSP_Data:
     '''
     零件的工序
     '''
-    jobs_operations_detile = None
+    jobs_operations_detail = None
     '''
     零件加工的详细信息
     '''
 
-    def __init__(self, path, jobs_num, machines_num, max_machine_per_operation, jobs_id, origial_data, jobs_operations, jobs_operations_detile):
+    candidate_machine = None
+    '''
+    候选机器列表
+    '''
+
+    candidate_machine = None
+    '''
+    候选机器列表索引
+    '''
+
+    candidate_machine_time = None
+    '''
+    候选机器加工时长
+    '''
+
+    def __init__(self, path, jobs_num, machines_num, max_machine_per_operation, jobs_id, origial_data, jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, candidate_machine_time):
         self.path = path
         self.jobs_num = jobs_num
         self.machines_num = machines_num
@@ -40,8 +58,10 @@ class FJSP_Data:
         self.jobs_id = jobs_id
         self.origial_data = origial_data
         self.jobs_operations = jobs_operations
-        self.jobs_operations_detile = jobs_operations_detile
-
+        self.jobs_operations_detail = jobs_operations_detail
+        self.candidate_machine = candidate_machine
+        self.candidate_machine_index = candidate_machine_index
+        self.candidate_machine_time = candidate_machine_time
 
     def display_info(self, show_origial_data=False):
         '''
@@ -61,6 +81,10 @@ class FJSP_Data:
             if show_origial_data:
                 print('原始数据为:')
                 print(self.origial_data[i+1])
-            print('零件工序详细信息矩阵为:')
-            print(self.jobs_operations_detile[i][:][:])
+            print('工序候选机器为:')
+            print(self.candidate_machine[i])
+            print('工序候选机器加工时长:')
+            print(self.candidate_machine_time[i])
+            print('工序候选机器索引为:')
+            print(self.candidate_machine_index[i])
             print()
