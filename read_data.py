@@ -77,7 +77,7 @@ def get_list(line):
         try:
             if line[i].isdigit():
                 j = i+1
-                while(line[j].isdigit() and j <= len(line)):
+                while( j < len(line) and line[j].isdigit()):
                     j = j+1
                 num = get_num(line, i, j-1)
                 i = j
