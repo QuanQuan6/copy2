@@ -666,8 +666,8 @@ class population:
         绘制甘特图
         '''
         # 初始化索引列表
-        columns_index = ['Task', 'job_num',
-                         'operation_num', 'Start', 'Finish']
+        columns_index = ['machine_num', 'job_num',
+                         'operation_num', 'begin_time', 'end_time']
         # 绘制甘特图的数据
         data = pd.DataFrame(data=None, columns=columns_index)
         # 初始化开始时间矩阵和结束时间矩阵
