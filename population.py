@@ -2,12 +2,13 @@
 from platform import machine
 from turtle import position
 import numpy as np
+from scipy import rand
 from FJSP_Data import FJSP_Data
 import random
 import heapq
 import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.figure_factory as ff
+
 
 class population:
     '''
@@ -110,7 +111,7 @@ class population:
                 candidate_machine_index_j = candidate_machine_index[job_num]
                 for operation_num in range(jobs_operations[job_num]):
                     # 当前工序的候选机器
-                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                              :candidate_machine_index_j[operation_num + 1]]
+                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
                     # 当前工序的加工时间
                     machine_time_o = jobs_operations_detail[job_num][operation_num]
                     # 临时机器加工时间
@@ -166,7 +167,7 @@ class population:
                 # 结尾索引
                 rear_index = operation_num + 1
                 # 当前工序的候选机器
-                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                          :candidate_machine_index_j[rear_index]]
+                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[rear_index]]
                 # 当前工序的加工时间
                 candidate_machine_time_o = candidate_machine_time_j[
                     candidate_machine_index_j[operation_num]:candidate_machine_index_j[rear_index]]
@@ -225,7 +226,7 @@ class population:
                 candidate_machine_index_j = candidate_machine_index[job_num]
                 for operation_num in range(jobs_operations[job_num]):
                     # 当前工序的候选机器
-                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                              :candidate_machine_index_j[operation_num + 1]]
+                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
                     # 随机选取的MS码
                     MS_code = random.randint(0, len(candidate_machine_o)-1)
                     # 更新MS码
@@ -349,7 +350,7 @@ class population:
                     # MS码上的机器码
                     candidate_machine_num = MS[MS_position]
                     # 当前工序的候选机器矩阵
-                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                              :candidate_machine_index_j[operation_num + 1]]
+                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
                     # 当前工序所用机器
                     selected_machine_num = candidate_machine_o[candidate_machine_num]
                     # 更新机器矩阵
@@ -536,7 +537,7 @@ class population:
                 # MS码上的机器码
                 candidate_machine_num = MS[MS_position]
                 # 当前工序的候选机器矩阵
-                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                          :candidate_machine_index_j[operation_num + 1]]
+                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
                 # 当前工序所用机器
                 selected_machine_num = candidate_machine_o[candidate_machine_num]
                 # 更新机器矩阵
@@ -661,7 +662,7 @@ class population:
         print('OS: ', self.best_OS)
         print('time: ', self.best_time)
 
-    def show_gantt_chart(self, MS, OS):
+    def show_gantt_chart(self, MS, OS, figsize):
         '''
         绘制甘特图
         '''
@@ -695,6 +696,24 @@ class population:
                         new_data = pd.DataFrame(
                             [new_data], columns=columns_index)
                         data = pd.concat([data, new_data], copy=False)
+        data['operation_time'] = data['end_time']-data['begin_time']
+        colors = self.__make_colors(jobs_num)
+        print(colors)
         # 更新绘图数据 ### end
-        figure = ff.create_gantt(data,index_col= 'job_num')
-        figure.show()
+        plt.figure(figsize=figsize)
+        for index, row in data.iterrows():
+            plt.barh(y=row['machine_num'],
+                     width=row['operation_time'], left=row['begin_time'],color=colors[row['\
+                         
+                         ']])
+        plt.show()
+
+    def __make_colors(self,numbers):
+        colors = []
+        COLOR_BITS = ['1', '2', '3', '4', '5', '6',
+                          '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
+        for i in range(numbers):
+            colorBit = ['#']
+            colorBit.extend(random.sample(COLOR_BITS, 6))
+            colors.append(''.join(colorBit))
+        return colors
