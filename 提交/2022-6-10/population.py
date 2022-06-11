@@ -689,7 +689,7 @@ class population:
         data['operation_time'] = data['end_time']-data['begin_time']
         return data
 
-    def show_gantt_chart(self, MS, OS, figsize):
+    def show_gantt_chart(self, MS, OS, figsize = (14,4)):
         '''
         绘制甘特图
         '''
