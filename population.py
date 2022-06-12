@@ -4,10 +4,231 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sortedcontainers import SortedList
 import math
-from numba import njit, prange, jit, int32
+from numba import njit, prange, jit, int32, int64
+
+
+# @njit(parallel=False)
+def POX_crossover(code, crossover_P, jobs_num):
+    '''
+    基于工件优先顺序的交叉  未修正
+    '''
+    people_size, code_length = code.shape
+    jobs = np.array([range(jobs_num)]).flatten()
+    # 遍历每条基因
+    for people in range(people_size-1):
+        # 判断是否发生交叉
+        if np.random.random() >= crossover_P:
+            continue
+        # 交叉基因 ### begin
+        people_1 = code[people]
+        people_2 = code[people+1]
+        # 选取工件集
+        np.random.shuffle(jobs)
+        jobs_set = set(jobs[0:np.random.randint(1, jobs_num)])
+        print(jobs_set)
+        # 开始交叉
+        positions_2 = 0
+        for positions_1 in range(code_length):
+            if people_1[positions_1] in jobs_set:
+                continue
+            while(people_2[positions_2] in jobs_set):
+                positions_2 += 1
+            people_1[positions_1] = people_2[positions_2]
+            positions_2 += 1
+        # 交叉基因 ### begin
+    # 随机排序最后一个
+    np.random.shuffle(code[people_size-1])
+
+
+
+
+
+@njit((int32[:, :], int32[:]), parallel=False)
+def initial_MS_position(MS_positions, jobs_operations):
+    '''
+    初始化对应工序的MS码矩阵
+
+    参数:F
+        MS_positions:对应工序的MS码矩阵
+        jobs_operations:各个工件的工序数
+    '''
+    # 工件个数
+    jobs_num = jobs_operations.shape[0]
+    # 辅助位置
+    position = 0
+    # 初始化MS码对应位置矩阵 ### begin
+    for job_num in range(jobs_num):
+        for operation_num in prange(jobs_operations[job_num]):
+            # 更新MS码对应位置矩阵
+            MS_positions[job_num][operation_num] = position
+            # 更新辅助位置
+            position += 1
 
 
 @njit(parallel=False)
+def initial_jobs_operations_detail(jobs_operations_detail):
+    '''
+    初始化jobs_operations_detail变量方便计算
+    '''
+    return np.where(
+        jobs_operations_detail == 0, 1000000000, jobs_operations_detail)
+
+
+@njit((int32[:, :], int64, int64, int32[:, :], int32[:], int32[:], int64[:, :, :], int32[:, :, :], int32[:, :], int32[:]), parallel=False)
+def initial_MS_global_selection(MS, first_index, rear_index, MS_positions, jobs_order, jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, machine_time):
+    '''
+    全局选择方法初始化对应MS码
+    '''
+    # 工件个数
+    jobs_num = jobs_operations.shape[0]
+    # 初始化机器加工时间辅助矩阵
+    machine_time.fill(0)
+    # 生成子种群 ### begin
+    for position in range(rear_index-first_index):
+        # 生成MS码的位置
+        MS_index = position+first_index
+        # 打乱随机工件矩阵
+        np.random.shuffle(jobs_order)
+        # 初始化机器加工时间辅助矩阵
+        machine_time.fill(0)
+        # 生成并更新MS码 ### begin
+        for i in range(jobs_num):
+            # 当前工件编号
+            job_num = jobs_order[i]
+            # 当前工件候选机器矩阵
+            candidate_machine_j = candidate_machine[job_num]
+            # 当前机器候选机器矩阵的索引矩阵
+            candidate_machine_index_j = candidate_machine_index[job_num]
+            for operation_num in range(jobs_operations[job_num]):
+                # 当前工序的候选机器
+                candidate_machine_o = candidate_machine_j[operation_num][0:
+                                                                         candidate_machine_index_j[operation_num]]
+                # 当前工序的加工时间
+                machine_time_o = jobs_operations_detail[job_num][operation_num]
+                # 临时机器加工时间
+                tem_machine_time = machine_time + machine_time_o
+                # 选取的最优机器编号
+                selected_machine = np.argmin(tem_machine_time)
+                # 最优机器对应的MS码
+                MS_code = np.where(candidate_machine_o ==
+                                   selected_machine)[0][0]
+                # 最优机器对应的加工时间
+                operation_time = machine_time_o[selected_machine]
+                # 更新机器加工时间辅助矩阵
+                machine_time[selected_machine] += operation_time
+                # 当前工序对应的MS码位置
+                MS_position = MS_positions[job_num][operation_num]
+                # 更新MS码
+                MS[MS_index][MS_position] = MS_code
+        # 生成并更新MS码 ### end
+    # 生成子种群 ### end
+
+
+@njit((int32[:, :], int32[:], int64, int64, int32[:], int64[:, :, :], int32[:, :, :], int32[:, :], int32[:]), parallel=False)
+def initial_MS_local_selection(MS, MS_, first_index, rear_index, jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, machine_time):
+    '''
+    局部选择方法初始化对应MS码
+    '''
+    # 工件个数
+    jobs_num = jobs_operations.shape[0]
+    # MS码MS码副本的位置
+    MS_position = 0
+    # 计算生成的MS码 ### begin
+    for job_num in range(jobs_num):
+        # 当前工件候选机器矩阵
+        candidate_machine_j = candidate_machine[job_num]
+        # 当前机器候选机器矩阵的索引矩阵
+        candidate_machine_index_j = candidate_machine_index[job_num]
+        for operation_num in range(jobs_operations[job_num]):
+            # 当前工序的候选机器
+            candidate_machine_o = candidate_machine_j[operation_num][0:
+                                                                     candidate_machine_index_j[operation_num]]
+            # 当前工序的加工时间
+            machine_time_o = jobs_operations_detail[job_num][operation_num]
+            # 临时机器加工时间
+            tem_machine_time = machine_time + machine_time_o
+            # 选取的最优机器编号
+            selected_machine = np.argmin(tem_machine_time)
+            # 最优机器对应的MS码
+            MS_code = np.where(candidate_machine_o ==
+                               selected_machine)[0][0]
+            # 最优机器对应的加工时间
+            operation_time = machine_time_o[selected_machine]
+            # 更新机器加工时间辅助矩阵
+            machine_time[selected_machine] += operation_time
+            # 更新生成的MS码副本
+            MS_[MS_position] = MS_code
+            # 更新MS码副本的位置
+            MS_position += 1
+        # 初始化机器加工时间
+        machine_time.fill(0)
+    # 计算生成的MS码 ### end
+    # 将该方法对应的MS码都设为1
+    MS[first_index:rear_index][:].fill(1)
+    # 将所有MS码变为和MS码副本一样的数值
+    MS[first_index:rear_index] = MS_*MS[first_index:rear_index]
+
+
+@njit((int32[:, :],  int64, int64, int32[:],  int32[:, :, :], int32[:, :]), parallel=False)
+def initial_MS_random_selection(MS, first_index, rear_index, jobs_operations, candidate_machine, candidate_machine_index):
+    '''
+    随机选择方法初始化对应MS码
+    '''
+    # 工件个数
+    jobs_num = jobs_operations.shape[0]
+    # 生成子种群 ### begin
+    for position in range(rear_index-first_index):
+        # 个体的索引
+        MS_index = first_index+position
+        # 对应的MS码位置
+        MS_position = 0
+        # 生成并更新MS码 ### begin
+        for job_num in range(jobs_num):
+            # 当前工件候选机器矩阵
+            candidate_machine_j = candidate_machine[job_num]
+            # 当前机器候选机器矩阵的索引矩阵
+            candidate_machine_index_j = candidate_machine_index[job_num]
+            for operation_num in range(jobs_operations[job_num]):
+                # 当前工序的候选机器
+                candidate_machine_o = candidate_machine_j[operation_num][0:
+                                                                         candidate_machine_index_j[operation_num]]
+                # 随机选取的MS码
+                MS_code = np.random.randint(0, len(candidate_machine_o))
+                # 更新MS码
+                MS[MS_index][MS_position] = MS_code
+                # 更新对应的MS码位置
+                MS_position += 1
+        # 生成并更新MS码 ### end
+    # 生成子种群 ### end
+
+
+@njit((int32[:, :],  int64,  int32[:]), parallel=False)
+def initial_OS(OS, size, jobs_operations):
+    '''
+    随机排列OS
+    '''
+    # 工件个数
+    jobs_num = jobs_operations.shape[0]
+    # OS左索引
+    left_index = 0
+    # OS右索引
+    right_index = 0
+    for job_num in range(jobs_num):
+        # 当前工件的工序数
+        operations = jobs_operations[job_num]
+        # 更新左索引
+        left_index = right_index
+        # 更新右索引
+        right_index += operations
+        # 赋值编码
+        for OS_index in range(size):
+            OS[OS_index][left_index:right_index] = job_num
+    # 随机打乱个体编码
+    for OS_index in range(size):
+        np.random.shuffle(OS[OS_index])
+
+
+@njit((int32[:, :], int64, int64), parallel=False)
 def uniform_crossover(code, crossover_P, uniform_P):
     '''
     均匀交叉
@@ -41,38 +262,17 @@ def uniform_crossover(code, crossover_P, uniform_P):
         # 交叉基因 ### end
 
 
-@njit(parallel=False)
-def POX_crossover(self, code, crossover_P):
+@njit((int32[:, :], int64), parallel=False)
+def random_crossover(code, crossover_P):
     '''
-    基于工件优先顺序的交叉
+    随机交叉
     '''
-    people_size, code_length = code.shape
-    jobs_num = self.data.jobs_num
-    jobs = np.array([range(jobs_num)]).flatten()
-    # 遍历每条基因
-    for people in range(people_size-1):
-        # 判断是否发生交叉
+    # 判断是否发生交叉
+    code_size = code.shape[0]
+    for code_index in range(code_size):
         if np.random.random() >= crossover_P:
             continue
-        # 交叉基因 ### begin
-        people_1 = code[people]
-        people_2 = code[people+1]
-        # 选取工件集
-        np.random.shuffle(jobs)
-        jobs_set = set(jobs[0:random.randint(1, jobs_num-1)])
-        # 开始交叉
-        positions_2 = 0
-        for positions_1 in range(code_length):
-            if people_1[positions_1] in jobs_set:
-                continue
-            while(people_2[positions_2] in jobs_set):
-                positions_2 += 1
-            people_1[positions_1] = people_2[positions_2]
-            positions_2 += 1
-        # 交叉基因 ### begin
-    # 随机排序最后一个
-    np.random.shuffle(code[people_size-1])
-
+        np.random.shuffle(code[code_index])
 
 def tournament(self, M, results):
     '''
@@ -93,218 +293,6 @@ def tournament(self, M, results):
     # 生成新种族 ### end
     self.MS = new_MS
     self.OS = new_OS
-
-
-def initial_MS_local_selection(self):
-    '''
-    局部选择方法初始化对应MS码
-    '''
-    # 各个工序的候选机器矩阵
-    candidate_machine = self.data.candidate_machine
-    # 各个工序的候选机器矩阵和加工时间的索引矩阵
-    candidate_machine_index = self.data.candidate_machine_index
-    # 各个工序的加工时间矩阵
-    candidate_machine_time = self.data.candidate_machine_time
-    # 各工件的工序数
-    jobs_operations = self.data.jobs_operations
-    # 机器加工时间辅助矩阵
-    machine_time = np.zeros(
-        shape=(1, self.data.machines_num), dtype=int).flatten()
-    # MS码副本
-    MS_ = np.empty(shape=(1, self.length), dtype=int).flatten()
-    # MS码MS码副本的位置
-    MS_position = 0
-    # 计算生成的MS码 ### begin
-    for job_num in range(self.data.jobs_num):
-        # 当前工件候选机器矩阵
-        candidate_machine_j = candidate_machine[job_num]
-        # 当前机器的加工时间矩阵
-        candidate_machine_time_j = candidate_machine_time[job_num]
-        # 当前机器候选机器矩阵的索引矩阵
-        candidate_machine_index_j = candidate_machine_index[job_num]
-        for operation_num in range(jobs_operations[job_num]):
-            # 结尾索引
-            rear_index = operation_num + 1
-            # 当前工序的候选机器
-            candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[rear_index]]
-            # 当前工序的加工时间
-            candidate_machine_time_o = candidate_machine_time_j[
-                candidate_machine_index_j[operation_num]:candidate_machine_index_j[rear_index]]
-            # 候选机器的索引
-            index = np.ix_(candidate_machine_o.tolist())
-            # 初始化临时机器加工时间
-            tem_machine_time = machine_time[index].copy()
-            # 更新临时机器加工时间
-            tem_machine_time = tem_machine_time + candidate_machine_time_o
-            # 最优机器对应的MS码
-            MS_code = np.argmin(tem_machine_time)
-            # 选取的最优机器编号
-            selected_machine = candidate_machine_o[MS_code]
-            # 最优机器对应的加工时间
-            operation_time = candidate_machine_time_o[MS_code]
-            # 更新机器加工时间辅助矩阵
-            machine_time[selected_machine] += operation_time
-            # 更新生成的MS码副本
-            MS_[MS_position] = MS_code
-            # 更新MS码副本的位置
-            MS_position += 1
-        # 初始化机器加工时间
-        machine_time.fill(0)
-    # 计算生成的MS码 ### end
-    # 重定形MS副本
-    MS_.reshape(-1, 1)
-    # 将该方法对应的MS码都设为1
-    self.MS[self.global_size:self.global_size+self.local_size][:].fill(1)
-    # 将所有MS码变为和MS码副本一样的数值
-    self.MS[self.global_size:self.global_size +
-            self.local_size] = MS_*self.MS[self.global_size:self.global_size+self.local_size]
-
-
-def initial_random_selection(self):
-    '''
-    随机选择方法初始化对应MS码
-    '''
-    # 各个工序的候选机器矩阵
-    candidate_machine = self.data.candidate_machine
-    # 各个工序的候选机器矩阵和加工时间的索引矩阵
-    candidate_machine_index = self.data.candidate_machine_index
-    # 工件数量
-    jobs_num = self.data.jobs_num
-    # 各工件的工序数
-    jobs_operations = self.data.jobs_operations
-    # 个体的索引
-    people_index = self.global_size+self.local_size
-    # 生成子种群 ### begin
-    for people in range(self.random_size):
-        # 对应的MS码位置
-        MS_position = 0
-        # 生成并更新MS码 ### begin
-        for job_num in range(jobs_num):
-            # 当前工件候选机器矩阵
-            candidate_machine_j = candidate_machine[job_num]
-            # 当前机器候选机器矩阵的索引矩阵
-            candidate_machine_index_j = candidate_machine_index[job_num]
-            for operation_num in range(jobs_operations[job_num]):
-                # 当前工序的候选机器
-                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
-                # 随机选取的MS码
-                MS_code = random.randint(0, len(candidate_machine_o)-1)
-                # 更新MS码
-                self.MS[people_index][MS_position] = MS_code
-                # 更新对应的MS码位置
-                MS_position += 1
-        # 生成并更新MS码 ### end
-        # 更新的个体的索引
-        people_index += 1
-    # 生成子种群 ### end
-
-
-def __initial_OS(self):
-    '''
-    随机排列OS
-    '''
-    # 种群规模
-    size = self.size
-    # 各工件的工序数
-    jobs_operations = self.data.jobs_operations
-    # 初始化OS码
-    self.OS = np.empty(shape=(size, self.length), dtype=int)
-    # OS左索引
-    left_index = 0
-    # OS右索引
-    right_index = 0
-    for job_num in range(len(jobs_operations)):
-        # 当前工件的工序数
-        operations = jobs_operations[job_num]
-        # 更新左索引
-        left_index = right_index
-        # 更新右索引
-        right_index += operations
-        # 赋值编码
-        for people in range(size):
-            self.OS[people][left_index:right_index] = job_num
-    # 随机打乱个体编码
-    for people in range(size):
-        np.random.shuffle(self.OS[people])
-
-
-@njit(parallel=False)
-def initial_MS_position(MS_positions, jobs_operations):
-    '''
-    初始化对应工序的MS码矩阵
-
-    参数:F
-        MS_positions:对应工序的MS码矩阵
-        jobs_operations:各个工件的工序数
-    '''
-    # 工件个数
-    jobs_num = jobs_operations.shape[0]
-    # 辅助位置
-    position = 0
-    # 初始化MS码对应位置矩阵 ### begin
-    for job_num in range(jobs_num):
-        for operation_num in prange(jobs_operations[job_num]):
-            # 更新MS码对应位置矩阵
-            MS_positions[job_num][operation_num] = position
-            # 更新辅助位置
-            position += 1
-
-
-@njit(parallel=False)
-def initial_jobs_operations_detail(jobs_operations_detail):
-    return np.where(
-        jobs_operations_detail == 0, 1000000000, jobs_operations_detail)
-
-
-@njit( parallel=True)
-def initial_MS_global_selection(MS, first_index, rear_index, MS_positions, jobs_order, jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, machine_time):
-    '''
-    全局选择方法初始化对应MS码
-    '''
-    # 工件个数
-    jobs_num = jobs_operations.shape[0]
-    # 机器加工时间辅助矩阵
-    machine_time.fill(0)
-    # 生成子种群 ### begin
-    for position in range(rear_index, first_index):
-        # 生成MS码的位置
-        MS_index = position+first_index
-        # 打乱随机工件矩阵
-        np.random.shuffle(jobs_order)
-        # 初始化机器加工时间辅助矩阵
-        machine_time.fill(0)
-        # 生成并更新MS码 ### begin
-        for i in range(jobs_num):
-            # 当前工件编号
-            job_num = jobs_order[i]
-            # 当前工件候选机器矩阵
-            candidate_machine_j = candidate_machine[job_num]
-            # 当前机器候选机器矩阵的索引矩阵
-            candidate_machine_index_j = candidate_machine_index[job_num]
-            for operation_num in range(jobs_operations[job_num]):
-                # 当前工序的候选机器
-                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
-                # 当前工序的加工时间
-                machine_time_o = jobs_operations_detail[job_num][operation_num]
-                # 临时机器加工时间
-                tem_machine_time = machine_time + machine_time_o
-                # 选取的最优机器编号
-                selected_machine = np.argmin(tem_machine_time)
-                # 最优机器对应的MS码
-                MS_code = np.where(candidate_machine_o ==
-                                   selected_machine)[0][0]
-                # 最优机器对应的加工时间
-                operation_time = machine_time_o[selected_machine]
-                # 更新机器加工时间辅助矩阵
-                machine_time[selected_machine] += operation_time
-                # 当前工序对应的MS码位置
-                MS_position = MS_positions[job_num][operation_num]
-                # 更新MS码
-                MS[MS_index][MS_position] = MS_code
-        # 生成并更新MS码 ### end
-
-    # 生成子种群 ### end
-
 
 class population:
     '''
@@ -369,8 +357,7 @@ class population:
         '''
         初始化MS
         '''
-        # initial_MS_global_selection ### begin
-        # MS码
+        # 初始化MS码
         self.MS = np.empty(shape=(self.size, self.length), dtype=int)
         # 工件数量
         jobs_num = self.data.jobs_num
@@ -388,6 +375,10 @@ class population:
         candidate_machine = self.data.candidate_machine
         # 各个工序的候选机器矩阵和加工时间的索引矩阵
         candidate_machine_index = self.data.candidate_machine_index
+        # 机器加工时间辅助矩阵
+        machine_time = np.zeros(
+            shape=(1, machines_num), dtype=int).flatten()
+        # 全局选择初始化 ### begin
         # 随机工件矩阵
         jobs_order = np.arange(jobs_num)
         # 初始化对应工序的MS码矩阵
@@ -396,18 +387,34 @@ class population:
         initial_MS_position(MS_positions, jobs_operations)
         global_first_index = 0
         global_rear_index = self.global_size
-        # initial_MS_global_selection(self.MS, global_first_index, global_rear_index, MS_positions, jobs_order,
-        #                             jobs_operations, jobs_operations_detail, machines_num, candidate_machine, candidate_machine_index)
-        # initial_MS_global_selection ### end
-
-        # initial_MS_local_selection()
-        # initial_random_selection()
+        initial_MS_global_selection(self.MS, global_first_index, global_rear_index, MS_positions, jobs_order,
+                                    jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, machine_time)
+        # 全局选择初始化 ### end
+        # 局部选择初始化 ### begin
+        local_first_index = global_rear_index
+        local_rear_index = local_first_index+self.local_size
+        MS_ = np.empty(shape=(1, self.length), dtype=int).flatten()
+        initial_MS_local_selection(self.MS, MS_, local_first_index, local_rear_index, jobs_operations,
+                                   jobs_operations_detail, candidate_machine, candidate_machine_index, machine_time)
+        # 局部选择初始化 ### end
+        # 随机选择初始化 ### begin
+        random_first_index = local_rear_index
+        random_rear_index = random_first_index+self.random_size
+        initial_MS_random_selection(self.MS, random_first_index, random_rear_index,
+                                    jobs_operations, candidate_machine, candidate_machine_index)
+        # 随机选择初始化 ### end
 
     def __initial_OS(self):
         '''
         初始化OS
         '''
+        # 初始化OS码
         self.OS = np.empty(shape=(self.size, self.length), dtype=int)
+        # 各工件的工序数
+        jobs_operations = self.data.jobs_operations
+        # 种群规模
+        size = self.size
+        initial_OS(self.OS, size, jobs_operations)
 
     def __decode(self):
         '''
@@ -482,7 +489,7 @@ class population:
                     # MS码上的机器码
                     candidate_machine_num = MS[MS_position]
                     # 当前工序的候选机器矩阵
-                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
+                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                              :candidate_machine_index_j[operation_num + 1]]
                     # 当前工序所用机器
                     selected_machine_num = candidate_machine_o[candidate_machine_num]
                     # 更新机器矩阵
@@ -664,7 +671,7 @@ class population:
                 # MS码上的机器码
                 candidate_machine_num = MS[MS_position]
                 # 当前工序的候选机器矩阵
-                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]:candidate_machine_index_j[operation_num + 1]]
+                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                          :candidate_machine_index_j[operation_num + 1]]
                 # 当前工序所用机器
                 selected_machine_num = candidate_machine_o[candidate_machine_num]
                 # 更新机器矩阵
@@ -776,38 +783,7 @@ class population:
         # 返回解
         return begin_time, end_time
 
-    def __POX_crossover(self, code, crossover_P):
-        '''
-        基于工件优先顺序的交叉
-        '''
-        people_size, code_length = code.shape
-        jobs_num = self.data.jobs_num
-        jobs = np.array([range(jobs_num)]).flatten()
-        # 遍历每组基因对
-        for people in range(people_size-1):
-            # 判断是否发生交叉
-            if random.random() >= crossover_P:
-                continue
-            # 交叉基因 ### begin
-            people_1 = code[people]
-            people_2 = code[people+1]
-            # 选取工件集
-            np.random.shuffle(jobs)
-            jobs_set = set(jobs[0:random.randint(1, jobs_num-1)])
-            # 开始交叉
-            positions_2 = 0
-            for positions_1 in range(code_length):
-                if people_1[positions_1] in jobs_set:
-                    continue
-                while(people_2[positions_2] in jobs_set):
-                    positions_2 += 1
-                people_1[positions_1] = people_2[positions_2]
-                positions_2 += 1
-            # 交叉基因 ### begin
-        # 随机排序最后一个
-        np.random.shuffle(code[people_size-1])
-
-    def GA(self, max_step=2000, max_no_new_best=15, select_type='tournament', tournament_M=2, crossover_P=1, uniform_P=1, crossover_MS_type='uniform', crossover_OS_type='POX'):
+    def GA(self, max_step=2000, max_no_new_best=15, select_type='tournament', tournament_M=2, crossover_P=1, uniform_P=1, crossover_MS_type='uniform', crossover_OS_type='random'):
         '''
         遗传算法
         '''
@@ -848,8 +824,8 @@ class population:
                 return
             # 交叉MS ### end
             # 交叉OS ### begin
-            if crossover_OS_type == 'POX':
-                POX_crossover(self.OS, crossover_P)
+            if crossover_OS_type == 'random':
+                random_crossover(self.OS, crossover_P)
             else:
                 print('crossover_OS_type参数生成出错')
                 return

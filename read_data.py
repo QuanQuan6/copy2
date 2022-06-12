@@ -38,35 +38,27 @@ def read_data(path):
                         jobs_operations_detail[i][operation_number][machine_number_can_operation] = data_lists[i][position]
                         position += 1
                     operation_number += 1
-            candidate_machine = []
-            candidate_machine_index = []
-            candidate_machine_time = []
+            
+            candidate_machine = np.zeros(shape=(
+                jobs_num, jobs_operations.max(), machines_num), dtype=int)
+            candidate_machine_index = np.zeros(
+                shape=(jobs_num, jobs_operations.max()), dtype=int)
+            candidate_machine_time = np.zeros(shape=(
+                jobs_num, jobs_operations.max(), machines_num), dtype=int)
             for job_num in range(jobs_num):
-                candidate_machine_j = []
-                candidate_machine_index_j = [0]
-                candidate_machine_time_j = []
-                index = 0
+                candidate_machine_j = candidate_machine[job_num]
+                candidate_machine_index_j = candidate_machine_index[job_num]
+                candidate_machine_time_j = candidate_machine_time[job_num]
                 for operation_num in range(jobs_operations[job_num]):
                     candidate_machine_o = np.where(
                         jobs_operations_detail[job_num][operation_num] != 0)[0]
-                    candidate_machine_j.append(candidate_machine_o)
+                    
+                    candidate_machine_index_j[operation_num] = candidate_machine_o.shape[0]
+                    candidate_machine_j[operation_num][0:candidate_machine_index_j[operation_num]
+                                                       ] = candidate_machine_o
                     candidate_machine_time_o = jobs_operations_detail[
                         job_num][operation_num][candidate_machine_o]
-                    candidate_machine_time_j.append(candidate_machine_time_o)
-                    index += len(candidate_machine_o)
-                    candidate_machine_index_j.append(index)
-                candidate_machine_j = np.concatenate(candidate_machine_j)
-                candidate_machine_time_j = np.concatenate(
-                    candidate_machine_time_j)
-                candidate_machine_index_j = np.array(candidate_machine_index_j)
-                candidate_machine.append(candidate_machine_j)
-                candidate_machine_index.append(candidate_machine_index_j)
-                candidate_machine_time.append(candidate_machine_time_j)
-            candidate_machine = np.array(candidate_machine, dtype=object)
-            candidate_machine_time = np.array(
-                candidate_machine_time, dtype=object)
-            candidate_machine_index = np.array(
-                candidate_machine_index, dtype=object)
+                    candidate_machine_time_j[operation_num][0:candidate_machine_index_j[operation_num]] = candidate_machine_time_o
         return FJSP_Data(path, jobs_num, machines_num, max_machine_per_operation, jobs_id, origial_data, jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, candidate_machine_time)
 
 
@@ -77,7 +69,7 @@ def get_list(line):
         try:
             if line[i].isdigit():
                 j = i+1
-                while( j < len(line) and line[j].isdigit()):
+                while(j < len(line) and line[j].isdigit()):
                     j = j+1
                 num = get_num(line, i, j-1)
                 i = j

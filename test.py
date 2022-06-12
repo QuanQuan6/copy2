@@ -1,3 +1,4 @@
+import code
 from read_data import read_data
 from population import *
 import time
@@ -19,33 +20,18 @@ data_path = 'Monaldo\Fjsp\Job_Data\Brandimarte_Data\Text\Mk01.fjs'
 data = read_data(data_path)
 # data.display_info(True)
 
-peoples = population(data, 5)
-jobs_operations = peoples.data.jobs_operations
-jobs_num = peoples.data.jobs_num
-machines_num = peoples.data.machines_num
-max_operations = jobs_operations.max()
-jobs_order = np.arange(jobs_num)
-MS_positions = np.empty(
-    shape=(jobs_num, max_operations), dtype=int)
-jobs_operations_detail = peoples.data.jobs_operations_detail
-jobs_operations_detail = initial_jobs_operations_detail(jobs_operations_detail)
-candidate_machine = peoples.data.candidate_machine
-MS = np.empty(shape=(peoples.size, peoples.length), dtype=int)
-candidate_machine_index = peoples.data.candidate_machine_index
-global_first_index = 0
-global_rear_index = peoples.global_size
-machine_time = np.zeros(
-    shape=(1, machines_num), dtype=int).flatten()
-print(MS)
-initial_MS_global_selection(MS, global_first_index, global_rear_index, MS_positions, jobs_order,
-                            jobs_operations, jobs_operations_detail, machine_time)
-print(MS)
+
+codes = population(data, 2)
+print(codes.OS)
+random_crossover(codes.OS, 0.1)
+print(codes.OS)
 begin_time = time.time()
-for i in range(100000):
-    initial_MS_position(MS_positions, jobs_operations)
+for i in range(1000):
+    pass
+
+
 end_time = time.time()
 print("运行了{}秒".format(end_time-begin_time))
-print(MS_positions.shape[0])
 
 
 #encode.print(encode.best_MS, encode.best_OS)
