@@ -4,6 +4,41 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sortedcontainers import SortedList
 import math
+from numba import njit, prange, jit
+
+
+@njit(parallel=False)
+def uniform_crossover(code, crossover_P, uniform_P):
+    '''
+    均匀交叉
+
+    参数：
+        code:基因
+        crossover_P:基因对交叉交叉概率
+        uniform_P:交换基因序列概率
+
+    '''
+    code_size, code_length = code.shape
+    # 遍历每组基因对
+    for code_pair in range(math.floor(code_size/2)):
+        # 判断是否发生交叉
+        if np.random.random() >= crossover_P:
+            continue
+        # 交叉基因 ### begin
+        code_index = code_pair*2
+        code_1 = code[code_index]
+        code_2 = code[code_index+1]
+        # 遍历基因的每个位置
+        for position in range(code_length):
+            # 相同位置如果基因相同就不交叉
+            if code_1[position] == code_2[position]:
+                continue
+            # 判断要不要交叉这个位置的基因
+            if np.random.random() >= uniform_P:
+                continue
+            # 交叉该位置的基因
+            code_1[position], code_2[position] = code_2[position], code_1[position]
+        # 交叉基因 ### end
 
 
 class population:
@@ -698,35 +733,12 @@ class population:
                 people_1[positions_1] = people_2[positions_2]
                 positions_2 += 1
             # 交叉基因 ### begin
+        # 随机排序最后一个
+        np.random.shuffle(code[people_size-1])
 
-    def __uniform_crossover(self, code, crossover_P, uniform_P):
+    def GA(self, max_step=2000, max_no_new_best=15, select_type='tournament', tournament_M=2, crossover_P=1, uniform_P=1, crossover_MS_type='uniform', crossover_OS_type='POX'):
         '''
-        均匀交叉
-        '''
-        people_size, code_length = code.shape
-        # 遍历每组基因对
-        for people_pair in range(math.floor(people_size/2)):
-            # 判断是否发生交叉
-            if random.random() >= crossover_P:
-                continue
-            # 交叉基因 ### begin
-            people_index = people_pair*2
-            people_1 = code[people_index]
-            people_2 = code[people_index+1]
-            # 遍历每个基因位置
-            for position in range(code_length):
-                # 相同位置基因相同
-                if people_1[position] == people_2[position]:
-                    continue
-                # 判断要不要交叉这个位置的基因
-                if random.random() >= uniform_P:
-                    continue
-                people_1[position], people_2[position] = people_2[position], people_1[position]
-            # 交叉基因 ### end
-
-    def __GA__tournament(self, max_step, max_no_new_best, tournament_M, crossover_P, uniform_P):
-        '''
-        遗传算法锦标赛选择
+        遗传算法
         '''
         no_new_best = 0
         # tournament_M大于种群个数的修正
@@ -745,26 +757,37 @@ class population:
                 self.best_OS = self.OS[best_poeple]
                 self.best_score = results[best_poeple]
                 no_new_best = 0
-                print('step: ',step)
-                print("best_score: ", self.best_score)
+                # print('step: ', step)
+                # print("best_score: ", self.best_score)
             else:
                 no_new_best += 1
             # 更新最优解 ### end
-            # 生成新种群
-            self.__tournament(tournament_M, results)
-            # 交叉MS
-            self.__uniform_crossover(self.MS, crossover_P, uniform_P)
-            # 交叉OS
-            self.__POX_crossover(self.OS, crossover_P)
+            # 生成新种群 ### begin
+            if select_type == 'tournament':
+                self.__tournament(tournament_M, results)
+            else:
+                print('select_type参数生成出错')
+                return
+            # 生成新种群 ### end
+            # 交叉MS ### begin
+            if crossover_MS_type == 'uniform':
+                uniform_crossover(self.MS, crossover_P, uniform_P)
+            else:
+                print('crossover_MS_type参数生成出错')
+                return
+            # 交叉MS ### end
+            # 交叉OS ### begin
+            if crossover_OS_type == 'POX':
+                self.__POX_crossover(self.OS, crossover_P)
+            else:
+                print('crossover_OS_type参数生成出错')
+                return
+            # 交叉OS ### end
+            # 变异MS ### begin
+            # 变异MS ### end
+            # 变异OS ### begin
+            # 变异OS ### end
         # 繁殖一代 ### end
-
-    def GA(self, max_step=20, max_no_new_best=15, select_type='tournament', tournament_M=2, crossover_P=1, uniform_P=1):
-        '''
-        遗传算法
-        '''
-        if select_type == 'tournament':
-            self.__GA__tournament(
-                max_step=max_step, max_no_new_best=max_no_new_best, tournament_M=tournament_M, crossover_P=crossover_P, uniform_P=uniform_P)
 
     def show_best(self):
         print('MS: ', self.best_MS)
