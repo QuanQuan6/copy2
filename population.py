@@ -4,10 +4,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sortedcontainers import SortedList
 import math
-from numba import njit,  int32, int64, float32, float64
+from numba import njit, jit,  int32, int64, float32, float64
 
 
-@njit((int32[:, :], int32[:]), parallel=False)
+@njit(
+    (int32[:, :], int32[:]),
+    parallel=False)
 def initial_MS_position(MS_positions, jobs_operations):
     '''
     初始化对应工序的MS码矩阵
@@ -29,7 +31,9 @@ def initial_MS_position(MS_positions, jobs_operations):
             position += 1
 
 
-@njit(parallel=False)
+@njit(
+    int64[:, :, :](int32[:, :, :]),
+    parallel=False)
 def initial_jobs_operations_detail(jobs_operations_detail):
     '''
     初始化jobs_operations_detail变量方便计算
@@ -38,8 +42,20 @@ def initial_jobs_operations_detail(jobs_operations_detail):
         jobs_operations_detail == 0, 1000000000, jobs_operations_detail)
 
 
-@njit((int32[:, :], int64, int64, int32[:, :], int32[:], int32[:], int64[:, :, :], int32[:, :, :], int32[:, :], int32[:]), parallel=False)
-def initial_MS_global_selection(MS, first_index, rear_index, MS_positions, jobs_order, jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, machine_time):
+@njit(
+    (int32[:, :],
+     int64, int64,
+     int32[:, :], int32[:],
+     int32[:], int64[:, :, :],
+     int32[:, :, :], int32[:, :],
+     int32[:]),
+    parallel=False)
+def initial_MS_global_selection(MS,
+                                first_index, rear_index,
+                                MS_positions, jobs_order,
+                                jobs_operations, jobs_operations_detail,
+                                candidate_machine, candidate_machine_index,
+                                machine_time):
     '''
     全局选择方法初始化对应MS码
     '''
@@ -88,8 +104,18 @@ def initial_MS_global_selection(MS, first_index, rear_index, MS_positions, jobs_
     # 生成子种群 ### end
 
 
-@njit((int32[:, :], int32[:], int64, int64, int32[:], int64[:, :, :], int32[:, :, :], int32[:, :], int32[:]), parallel=False)
-def initial_MS_local_selection(MS, MS_, first_index, rear_index, jobs_operations, jobs_operations_detail, candidate_machine, candidate_machine_index, machine_time):
+@njit(
+    (int32[:, :], int32[:],
+     int64, int64,
+     int32[:], int64[:, :, :],
+     int32[:, :, :], int32[:, :],
+     int32[:]),
+    parallel=False)
+def initial_MS_local_selection(MS, MS_,
+                               first_index, rear_index,
+                               jobs_operations, jobs_operations_detail,
+                               candidate_machine, candidate_machine_index,
+                               machine_time):
     '''
     局部选择方法初始化对应MS码
     '''
@@ -133,8 +159,16 @@ def initial_MS_local_selection(MS, MS_, first_index, rear_index, jobs_operations
     MS[first_index:rear_index] = MS_*MS[first_index:rear_index]
 
 
-@njit((int32[:, :],  int64, int64, int32[:],  int32[:, :, :], int32[:, :]), parallel=False)
-def initial_MS_random_selection(MS, first_index, rear_index, jobs_operations, candidate_machine, candidate_machine_index):
+@njit(
+    (int32[:, :],
+     int64, int64,
+     int32[:],
+     int32[:, :, :], int32[:, :]),
+    parallel=False)
+def initial_MS_random_selection(MS,
+                                first_index, rear_index,
+                                jobs_operations,
+                                candidate_machine, candidate_machine_index):
     '''
     随机选择方法初始化对应MS码
     '''
@@ -166,7 +200,9 @@ def initial_MS_random_selection(MS, first_index, rear_index, jobs_operations, ca
     # 生成子种群 ### end
 
 
-@njit((int32[:, :],  int64,  int32[:]), parallel=False)
+@njit(
+    (int32[:, :],  int64,  int32[:]),
+    parallel=False)
 def initial_OS(OS, size, jobs_operations):
     '''
     随机排列OS
@@ -192,7 +228,9 @@ def initial_OS(OS, size, jobs_operations):
         np.random.shuffle(OS[OS_index])
 
 
-@njit((int32[:, :], int64, int64), parallel=False)
+@njit(
+    (int32[:, :], int64, int64),
+    parallel=False)
 def uniform_crossover(code, crossover_P, uniform_P):
     '''
     均匀交叉
@@ -226,7 +264,9 @@ def uniform_crossover(code, crossover_P, uniform_P):
         # 交叉基因 ### end
 
 
-@njit((int32[:, :], int64), parallel=False)
+@njit(
+    (int32[:, :], int64),
+    parallel=False)
 def random_crossover(code, crossover_P):
     '''
     随机交叉
@@ -239,7 +279,9 @@ def random_crossover(code, crossover_P):
         np.random.shuffle(code[code_index])
 
 
-@njit((int32[:, :], int64, int32[:]), parallel=False)
+@njit(
+    (int32[:, :], int64, int32[:]),
+    parallel=False)
 def POX_crossover(code, crossover_P,  jobs):
     '''
     基于工件优先顺序的交叉
@@ -271,8 +313,18 @@ def POX_crossover(code, crossover_P,  jobs):
     np.random.shuffle(code[people_size-1])
 
 
-@njit((int32[:, :], int32[:, :], int32[:, :], int32[:, :], int64, float64[:], int32[:]), parallel=False)
-def tournament(MS, OS, new_MS, new_OS, tournament_M, results, recodes):
+@njit(
+    (int32[:, :], int32[:, :],
+     int32[:, :], int32[:, :],
+     int64,
+     float64[:],
+     int32[:]),
+    parallel=False)
+def tournament(MS, OS,
+               new_MS, new_OS,
+               tournament_M,
+               results,
+               recodes):
     '''
     锦标赛选择
     '''
@@ -293,7 +345,9 @@ def tournament(MS, OS, new_MS, new_OS, tournament_M, results, recodes):
     # 生成新种族 ### end
 
 
-@njit((int32[:], int64, int64), parallel=False)
+@njit(
+    (int32[:], int64, int64),
+    parallel=False)
 def add_one_item(list, value, length):
     if length == 0:
         list[0] = value
@@ -303,16 +357,17 @@ def add_one_item(list, value, length):
     list[index] = value
 
 
-@njit(int32(int32[:, :], int32[:, :], int32[:],
-            int32[:, :, :], int32[:, :], int32[:, :],
+@njit(int32(int32[:], int32[:], int32[:],
+            int32[:, :, :], int32[:, :, :], int32[:, :, :],
             int32[:, :], int32[:, :], int32[:],
             int32[:], int32[:, :], int32[:, :],
-            int32[:], int32[:, :, :], int32[:, :, :]), parallel=False)
+            int32[:], int32[:, :, :]),
+      parallel=False)
 def decode_one(MS, OS, jobs_operations,
                jobs_operations_detail, begin_time, end_time,
                selected_machine_time, selected_machine, jobs_operation,
                machine_operationed, begin_time_lists,  end_time_lists,
-               machine_operations, candidate_machine, candidate_machine_index):
+               machine_operations, candidate_machine):
     '''
     解码一个个体
     '''
@@ -351,17 +406,16 @@ def decode_one(MS, OS, jobs_operations,
         candidate_machine_j = candidate_machine[job_num]
         # 当前工件的详细信息矩阵
         jobs_operations_detail_j = jobs_operations_detail[job_num]
-        # 当前工件候选机器矩阵和加工时间的索引矩阵
-        candidate_machine_index_j = candidate_machine_index[job_num]
+
+        selected_machine_j = selected_machine[job_num]
+
         for operation_num in range(jobs_operations[job_num]):
             # MS码上的机器码
             candidate_machine_num = MS[MS_position]
-            # 当前工序的候选机器矩阵
-            candidate_machine_o = candidate_machine_j[operation_num]
             # 当前工序所用机器
-            selected_machine_num = candidate_machine_o[candidate_machine_num]
+            selected_machine_num = candidate_machine_j[operation_num][candidate_machine_num]
             # 更新机器矩阵
-            selected_machine[job_num][operation_num] = selected_machine_num
+            selected_machine_j[operation_num] = selected_machine_num
             # 更新时间矩阵
             selected_machine_time[job_num][operation_num] = jobs_operations_detail_j[operation_num][selected_machine_num]
             # 更新位置
@@ -392,7 +446,6 @@ def decode_one(MS, OS, jobs_operations,
                 # 更新该机器开始时间列表
                 add_one_item(begin_time_list, 0,
                              machine_operations[selected_machine_num])
-
                 # 更新结束时间矩阵
                 end_time[selected_machine_num][job_num][operation_num] = selected_machine_time_o
                 # 更新该机器结束时间列表
