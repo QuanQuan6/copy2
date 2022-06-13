@@ -4,43 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sortedcontainers import SortedList
 import math
-from numba import njit, prange, jit, int32, int64
-
-
-# @njit(parallel=False)
-def POX_crossover(code, crossover_P, jobs_num):
-    '''
-    基于工件优先顺序的交叉  未修正
-    '''
-    people_size, code_length = code.shape
-    jobs = np.array([range(jobs_num)]).flatten()
-    # 遍历每条基因
-    for people in range(people_size-1):
-        # 判断是否发生交叉
-        if np.random.random() >= crossover_P:
-            continue
-        # 交叉基因 ### begin
-        people_1 = code[people]
-        people_2 = code[people+1]
-        # 选取工件集
-        np.random.shuffle(jobs)
-        jobs_set = set(jobs[0:np.random.randint(1, jobs_num)])
-        print(jobs_set)
-        # 开始交叉
-        positions_2 = 0
-        for positions_1 in range(code_length):
-            if people_1[positions_1] in jobs_set:
-                continue
-            while(people_2[positions_2] in jobs_set):
-                positions_2 += 1
-            people_1[positions_1] = people_2[positions_2]
-            positions_2 += 1
-        # 交叉基因 ### begin
-    # 随机排序最后一个
-    np.random.shuffle(code[people_size-1])
-
-
-
+from numba import njit,  int32, int64, float32, float64
 
 
 @njit((int32[:, :], int32[:]), parallel=False)
@@ -58,7 +22,7 @@ def initial_MS_position(MS_positions, jobs_operations):
     position = 0
     # 初始化MS码对应位置矩阵 ### begin
     for job_num in range(jobs_num):
-        for operation_num in prange(jobs_operations[job_num]):
+        for operation_num in range(jobs_operations[job_num]):
             # 更新MS码对应位置矩阵
             MS_positions[job_num][operation_num] = position
             # 更新辅助位置
@@ -274,25 +238,248 @@ def random_crossover(code, crossover_P):
             continue
         np.random.shuffle(code[code_index])
 
-def tournament(self, M, results):
+
+@njit((int32[:, :], int64, int32[:]), parallel=False)
+def POX_crossover(code, crossover_P,  jobs):
+    '''
+    基于工件优先顺序的交叉
+    '''
+    people_size, code_length = code.shape
+    jobs_num = jobs.shape[0]
+    # 遍历每条基因
+    for people in range(people_size-1):
+        # 判断是否发生交叉
+        if np.random.random() >= crossover_P:
+            continue
+        # 交叉基因 ### begin
+        people_1 = code[people]
+        people_2 = code[people+1]
+        # 选取工件集
+        np.random.shuffle(jobs)
+        jobs_set = jobs[0:np.random.randint(1, jobs_num)]
+        # 开始交叉
+        positions_2 = 0
+        for positions_1 in range(code_length):
+            if people_1[positions_1] in jobs_set:
+                continue
+            while(people_2[positions_2] in jobs_set):
+                positions_2 += 1
+            people_1[positions_1] = people_2[positions_2]
+            positions_2 += 1
+        # 交叉基因 ### begin
+    # 随机排序最后一个
+    np.random.shuffle(code[people_size-1])
+
+
+@njit((int32[:, :], int32[:, :], int32[:, :], int32[:, :], int64, float64[:], int32[:]), parallel=False)
+def tournament(MS, OS, new_MS, new_OS, tournament_M, results, recodes):
     '''
     锦标赛选择
     '''
-    MS = self.MS
-    OS = self.OS
-    # 新种群
-    new_MS = np.empty(shape=(MS.shape), dtype=int)
-    new_OS = np.empty(shape=(OS.shape), dtype=int)
+    size = MS.shape[0]
+    recodes.fill(-1)
     # 生成新种族 ### begin
-    for new_people in range(self.size):
-        selected_M_people = random.sample(range(self.size), k=M)
-        selected_best_people = selected_M_people[np.argmin(
-            results[selected_M_people])]
-        new_MS[new_people] = MS[selected_best_people]
-        new_OS[new_people] = OS[selected_best_people]
+    for new_code_index in range(size):
+        selected_codes = np.random.choice(size, tournament_M)
+        selected_codes = np.unique(selected_codes)
+        selected_best_code = selected_codes[(np.argmin(
+            results[selected_codes]))]
+        recodes[new_code_index] = selected_best_code
+    recodes_size = np.sum(recodes >= 0)
+    for new_code_index in range(recodes_size):
+        selected_code = recodes[new_code_index]
+        new_MS[new_code_index] = MS[selected_code]
+        new_OS[new_code_index] = OS[selected_code]
     # 生成新种族 ### end
-    self.MS = new_MS
-    self.OS = new_OS
+
+
+@njit((int32[:], int64, int64), parallel=False)
+def add_one_item(list, value, length):
+    if length == 0:
+        list[0] = value
+        return
+    index = np.searchsorted(list[0:length], value)
+    list[index+1:length+1] = list[index: length]
+    list[index] = value
+
+
+@njit(int32(int32[:, :], int32[:, :], int32[:],
+            int32[:, :, :], int32[:, :], int32[:, :],
+            int32[:, :], int32[:, :], int32[:],
+            int32[:], int32[:, :], int32[:, :],
+            int32[:], int32[:, :, :], int32[:, :, :]), parallel=False)
+def decode_one(MS, OS, jobs_operations,
+               jobs_operations_detail, begin_time, end_time,
+               selected_machine_time, selected_machine, jobs_operation,
+               machine_operationed, begin_time_lists,  end_time_lists,
+               machine_operations, candidate_machine, candidate_machine_index):
+    '''
+    解码一个个体
+    '''
+    # 工件个数
+    jobs_num = jobs_operations.shape[0]
+    # 机器个数
+    machines_num = begin_time_lists.shape[0]
+    # 各个工序的详细信息矩阵
+    jobs_operations_detail = initial_jobs_operations_detail(
+        jobs_operations_detail)
+    # 初始化开始时间矩阵
+    begin_time.fill(0)
+    # 初始化结束时间矩阵
+    end_time.fill(0)
+    # 初始化该哪个工序的矩阵
+    jobs_operation.fill(0)
+    # 初始化记录机器是否开始加工过的矩阵
+    machine_operationed.fill(0)
+    # 初始化各工序所选机器矩阵
+    selected_machine.fill(0)
+    # 初始化各工序所用时间矩阵
+    selected_machine_time.fill(0)
+    # 初始化记录机器是否开始加工过的矩阵
+    machine_operationed.fill(0)
+    # 初始化各机器开始时间列表
+    begin_time_lists.fill(0)
+    # 初始化各机器结束时间列表
+    end_time_lists.fill(0)
+    # 初始各个机器加工步骤数
+    machine_operations.fill(0)
+    # 依次读取的位置
+    MS_position = 0
+    # 计算时间矩阵和机器矩阵 ### begin
+    for job_num in range(jobs_num):
+        # 当前工件的候选机器矩阵
+        candidate_machine_j = candidate_machine[job_num]
+        # 当前工件的详细信息矩阵
+        jobs_operations_detail_j = jobs_operations_detail[job_num]
+        # 当前工件候选机器矩阵和加工时间的索引矩阵
+        candidate_machine_index_j = candidate_machine_index[job_num]
+        for operation_num in range(jobs_operations[job_num]):
+            # MS码上的机器码
+            candidate_machine_num = MS[MS_position]
+            # 当前工序的候选机器矩阵
+            candidate_machine_o = candidate_machine_j[operation_num]
+            # 当前工序所用机器
+            selected_machine_num = candidate_machine_o[candidate_machine_num]
+            # 更新机器矩阵
+            selected_machine[job_num][operation_num] = selected_machine_num
+            # 更新时间矩阵
+            selected_machine_time[job_num][operation_num] = jobs_operations_detail_j[operation_num][selected_machine_num]
+            # 更新位置
+            MS_position += 1
+    # 计算时间矩阵和机器矩阵 ### end
+    # 生成调度 ### begin
+    for OS_position in range(len(OS)):
+        # 当前的工件编号
+        job_num = OS[OS_position]
+        # 当前的工序编号
+        operation_num = jobs_operation[job_num]
+        # 更新记录该哪个工序的矩阵
+        jobs_operation[job_num] += 1
+        # 加工所用的机器编号
+        selected_machine_num = selected_machine[job_num][operation_num]
+        # 加工所用的时间
+        selected_machine_time_o = selected_machine_time[job_num][operation_num]
+        # 记录所选机器加工开始时间的堆
+        begin_time_list = begin_time_lists[selected_machine_num]
+        # 记录所选机器加工结束时间的堆
+        end_time_list = end_time_lists[selected_machine_num]
+        # 机器没有开工过 ### begin
+        if machine_operationed[selected_machine_num] == 0:
+            # 是该工件的第一道工序，从0时刻开始 ### begin
+            if operation_num == 0:
+                # 更新开始时间矩阵
+                begin_time[selected_machine_num][job_num][operation_num] = 0
+                # 更新该机器开始时间列表
+                add_one_item(begin_time_list, 0,
+                             machine_operations[selected_machine_num])
+
+                # 更新结束时间矩阵
+                end_time[selected_machine_num][job_num][operation_num] = selected_machine_time_o
+                # 更新该机器结束时间列表
+                add_one_item(end_time_list, selected_machine_time_o,
+                             machine_operations[selected_machine_num])
+                # 更新机器的操作数
+                machine_operations[selected_machine_num] += 1
+            # 是该工件的第一道工序，从0时刻开始 ### end
+            # 从上道工序的结束时间开始 ### begin
+            else:
+                # 上一道工序所用的机器编号
+                last_machine_num = selected_machine[job_num][operation_num-1]
+                # 当前工序的开始时间
+                begin_time_o = end_time[last_machine_num][job_num][operation_num-1]
+                # 更新开始时间矩阵
+                begin_time[selected_machine_num][job_num][operation_num] = begin_time_o
+                # 更新该机器开始时间列表
+                add_one_item(begin_time_list, begin_time_o,
+                             machine_operations[selected_machine_num])
+                # 当前工序的结束时间
+                end_time_o = begin_time_o + selected_machine_time_o
+                # 更新结束时间矩阵
+                end_time[selected_machine_num][job_num][operation_num] = end_time_o
+                # 更新该机器结束时间列表
+                add_one_item(end_time_list, end_time_o,
+                             machine_operations[selected_machine_num])
+                # 更新机器的操作数
+                machine_operations[selected_machine_num] += 1
+            # 从上道工序的结束时间开始 ### end
+            # 更新记录机器是否开始加工过的矩阵
+            machine_operationed[selected_machine_num] = 1
+        # 机器没有开工过 ### begin
+        # 机器开工过则寻找最优时间段 ### begin
+        else:
+            # 初始化当前工序的最早的开始时间
+            operation_begin_time = 0
+            # 如果该工序不是第一道工序更新operation_begin_time ### begin
+            if operation_num != 0:
+                # 上一个工序所用的机器编号
+                last_machine_num = selected_machine[job_num][operation_num-1]
+                # 最早从上一道工序的结束时间开始
+                operation_begin_time = end_time[last_machine_num][job_num][operation_num-1]
+            # 如果该工序不是第一道工序更新operation_begin_time ### end
+            # 初始化当前工序的开始时间（上一道工序的结束的时间）
+            begin_time_o = operation_begin_time
+            # 遍历寻找最优开始时间 ### begin
+            for i in range(machine_operations.shape[0]):
+                # 结束时间大于等于最优开始时间
+                if begin_time_o >= end_time_list[i]:
+                    continue
+                # 找到了，跳出
+                if begin_time_list[i] - begin_time_o >= selected_machine_time_o:
+                    break
+                # 更新进行下一次寻找
+                begin_time_o = end_time_list[i]
+            # 遍历寻找最优开始时间 ### end
+            # 更新开始时间矩阵
+            begin_time[selected_machine_num][job_num][operation_num] = begin_time_o
+            # 更新该机器开始时间列表
+            add_one_item(begin_time_list, begin_time_o,
+                         machine_operations[selected_machine_num])
+            # 当前工序的结束时间
+            end_time_o = begin_time_o + selected_machine_time_o
+            # 更新结束时间矩阵
+            end_time[selected_machine_num][job_num][operation_num] = end_time_o
+            # 更新该机器结束时间列表
+            add_one_item(end_time_list, end_time_o,
+                         machine_operations[selected_machine_num])
+            # 更新记录机器是否开始加工过的矩阵
+            machine_operations[selected_machine_num] += 1
+        # 机器开工过则寻找最优时间段 ### end
+    # 生成调度 ### end
+    # 初始化最短加工时间
+    min_time = 0
+    # 计算最短加工时间 ### begin
+    for machine_num in range(machines_num):
+        # 如果机器没有加工过就换下一个机器
+        if machine_operationed[machine_num] == 0:
+            continue
+        # 当前机器的最晚完工时间
+        min_time_m = end_time_lists[machine_num][machine_operations[machine_num]-1]
+        # 更新最短加工时间
+        min_time = max(min_time, min_time_m)
+    # 计算最短加工时间 ### end
+    # 返回解
+    return min_time
+
 
 class population:
     '''
@@ -416,7 +603,7 @@ class population:
         size = self.size
         initial_OS(self.OS, size, jobs_operations)
 
-    def __decode(self):
+    def decode(self):
         '''
         解码族群
         '''
@@ -489,7 +676,7 @@ class population:
                     # MS码上的机器码
                     candidate_machine_num = MS[MS_position]
                     # 当前工序的候选机器矩阵
-                    candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                              :candidate_machine_index_j[operation_num + 1]]
+                    candidate_machine_o = candidate_machine_j[operation_num]
                     # 当前工序所用机器
                     selected_machine_num = candidate_machine_o[candidate_machine_num]
                     # 更新机器矩阵
@@ -671,7 +858,7 @@ class population:
                 # MS码上的机器码
                 candidate_machine_num = MS[MS_position]
                 # 当前工序的候选机器矩阵
-                candidate_machine_o = candidate_machine_j[candidate_machine_index_j[operation_num]                                                          :candidate_machine_index_j[operation_num + 1]]
+                candidate_machine_o = candidate_machine_j[operation_num]
                 # 当前工序所用机器
                 selected_machine_num = candidate_machine_o[candidate_machine_num]
                 # 更新机器矩阵
@@ -783,7 +970,7 @@ class population:
         # 返回解
         return begin_time, end_time
 
-    def GA(self, max_step=2000, max_no_new_best=15, select_type='tournament', tournament_M=2, crossover_P=1, uniform_P=1, crossover_MS_type='uniform', crossover_OS_type='random'):
+    def GA(self, max_step=2000, max_no_new_best=100, select_type='tournament', tournament_M=3, crossover_P=1, uniform_P=1, crossover_MS_type='uniform', crossover_OS_type='POX'):
         '''
         遗传算法
         '''
@@ -796,7 +983,7 @@ class population:
             # 找不到更好的个体,结束迭代
             if max_no_new_best <= no_new_best:
                 break
-            results = self.__decode()
+            results = self.decode()
             # 更新最优解 ### begin
             best_poeple = np.argmin(results)
             if self.best_score > results[best_poeple]:
@@ -804,28 +991,36 @@ class population:
                 self.best_OS = self.OS[best_poeple]
                 self.best_score = results[best_poeple]
                 no_new_best = 0
-                # print('step: ', step)
-                # print("best_score: ", self.best_score)
+                print('step: ', step)
+                print("best_score: ", self.best_score)
             else:
                 no_new_best += 1
             # 更新最优解 ### end
             # 生成新种群 ### begin
+            new_OS = np.empty(shape=self.MS.shape, dtype=int)
+            new_MS = np.empty(shape=self.MS.shape, dtype=int)
+            # 选取下一代 ### begin
+            recodes = np.empty(shape=(1, self.size), dtype=int).flatten()
             if select_type == 'tournament':
-                tournament(tournament_M, results)
+                tournament(self.MS, self.OS, new_MS, new_OS,
+                           tournament_M, results, recodes)
             else:
                 print('select_type参数生成出错')
                 return
-            # 生成新种群 ### end
+            # 选取下一代 ### end
             # 交叉MS ### begin
             if crossover_MS_type == 'uniform':
-                uniform_crossover(self.MS, crossover_P, uniform_P)
+                uniform_crossover(new_MS, crossover_P, uniform_P)
             else:
                 print('crossover_MS_type参数生成出错')
                 return
             # 交叉MS ### end
             # 交叉OS ### begin
             if crossover_OS_type == 'random':
-                random_crossover(self.OS, crossover_P)
+                random_crossover(new_OS, crossover_P)
+            elif crossover_OS_type == 'POX':
+                jobs = np.array([range(self.data.jobs_num)]).flatten()
+                POX_crossover(new_OS, crossover_P, jobs)
             else:
                 print('crossover_OS_type参数生成出错')
                 return
@@ -834,6 +1029,9 @@ class population:
             # 变异MS ### end
             # 变异OS ### begin
             # 变异OS ### end
+            self.MS = new_MS
+            self.OS = new_OS
+            # 生成新种群 ### end
         # 繁殖一代 ### end
 
     def __get_data(self, MS, OS):

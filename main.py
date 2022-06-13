@@ -12,13 +12,15 @@ import numba
     1) 均匀交叉
     2) 工序码
 '''
-data_path = 'data.txt'
+
 data_path = 'Monaldo\Fjsp\Job_Data\Brandimarte_Data\Text\Mk01.fjs'
+data_path = 'data.txt'
 
 data = read_data(data_path)
 # data.display_info(True)
 
-peoples = population(data, 60, 30, 10)
+
+peoples = population(data, 100 ,100, 100)
 begin_time = time.time()
 peoples.GA(max_no_new_best=100)
 print(time.time()-begin_time)
