@@ -20,7 +20,7 @@ for i in range(9):
     data_path = 'Monaldo\Fjsp\Job_Data\Brandimarte_Data\Text\Mk0{}.fjs'.format(
         i+1)
     data = read_data(data_path)
-    codes = population(data, 100)
+    codes = population(data, 60, 30, 10)
     codes_list.append(codes)
     index = 'Mk0{}'.format(i+1)
     index_list.append(index)
@@ -28,18 +28,19 @@ for i in range(9):
 columns_index = []
 data = pd.DataFrame(data=None, index=index_list, columns=columns_index)
 
-com_times = 50
+com_times = 20
 max_step = 50
 max_no_new_best = 100
 crossover_P = 1
 uniform_P = 1
-tournament_M = 3
+tournament_M = 2
 # UPNR
 for i in range(9):
     total_time = 0
     total_score = 0
     total_step = 0
     for _ in range(com_times):
+        print('{}-{}'.format(i,_))
         begin_time = time.time()
         codes_list[i].initial()
         codes_list[i].GA(max_step=max_step, max_no_new_best=max_no_new_best,

@@ -59,84 +59,15 @@ class population:
     最好的OS码
     '''
 
-    def __init__(self, data, size):
+    def __init__(self, data, global_size=0, local_size=0, random_size=0):
         self.data = data
-        self.size = size
+        self.global_size = global_size
+        self.local_size = local_size
+        self.random_size = random_size
+        self.size = global_size+local_size+random_size
         self.length = data.jobs_operations.sum()
 
     def initial(self):
-        '''
-        自适应初始化
-        '''
-        real_size = self.size
-        self.global_size = 100
-        self.local_size = 100
-        self.random_size = 100
-        self.size = 300
-        self.__initial_OS()
-        self.__initial_MS()
-        # 工件个数
-        jobs_num = self.data.jobs_num
-        # 机器数量
-        machines_num = self.data.machines_num
-        # 各工件的工序数
-        jobs_operations = self.data.jobs_operations
-        # 最大工序数
-        max_operations = jobs_operations.max()
-        # 各个工序的详细信息矩阵
-        jobs_operations_detail = self.data.jobs_operations_detail
-        # 各个工序的候选机器矩阵
-        candidate_machine = self.data.candidate_machine
-        # 各个工序的候选机器矩阵和加工时间的索引矩阵
-        # 选用机器矩阵
-        selected_machine = np.empty(
-            shape=(jobs_num, max_operations), dtype=np.int32)
-        # 选用机器时间矩阵
-        selected_machine_time = np.empty(
-            shape=(jobs_num, max_operations), dtype=np.int32)
-        # 开工时间矩阵
-        begin_time = np.empty(
-            shape=(machines_num, jobs_num, max_operations), dtype=np.int32)
-        # 结束时间矩阵
-        end_time = np.empty(
-            shape=(machines_num, jobs_num, max_operations), dtype=np.int32)
-        # 记录工件加工到哪道工序的矩阵
-        jobs_operation = np.empty(
-            shape=(1, jobs_num), dtype=np.int32).flatten()
-        # 记录机器是否开始加工过的矩阵
-        machine_operationed = np.empty(
-            shape=(1, machines_num), dtype=np.int32).flatten()
-        # 各机器开始时间矩阵
-        begin_time_lists = np.empty(
-            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
-        # 各机器结束时间矩阵
-        end_time_lists = np.empty(
-            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
-        # 记录机器加工的步骤数
-        machine_operations = np.empty(
-            shape=(1, machines_num), dtype=np.int32).flatten()
-        # 解码结果矩阵
-        decode_results = np.empty(
-            shape=(1, self.size), dtype=np.int32).flatten()
-        decode(self.MS, self.OS,
-               decode_results,
-               jobs_operations, jobs_operations_detail,
-               begin_time, end_time,
-               selected_machine_time, selected_machine,
-               jobs_operation, machine_operationed, machine_operations,
-               begin_time_lists,  end_time_lists,
-               candidate_machine)
-        global_score = 1/decode_results[0:100].sum()
-        local_score = 1/decode_results[100:200].sum()
-        random_score = 1/decode_results[200:].sum()
-        global_size = math.ceil(
-            real_size*global_score/(global_score+local_score+random_score))
-        self.global_size = global_size
-        local_size = math.ceil((real_size-global_size)*local_score /
-                               (local_score+random_score))
-        self.local_size = local_size
-        self.random_size = real_size-local_size-global_size
-        self.size = real_size
         self.__initial_OS()
         self.__initial_MS()
 
