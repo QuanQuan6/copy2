@@ -619,7 +619,7 @@ def best_MS_mutations(MS, Mutation_P,
     最优机器变异
     '''
     MS_size, MS_length = MS.shape
-    # 工件个数
+    # 工件个数 
     jobs_num = jobs_operations.shape[0]
     # jobs_operations_detail = initial_jobs_operations_detail(
     #     jobs_operations_detail)
