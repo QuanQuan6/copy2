@@ -112,12 +112,18 @@ class population:
         # 各机器结束时间矩阵
         end_time_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+        job_lists = np.empty(
+            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+        operation_lists = np.empty(
+            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
         # 记录机器加工的步骤数
         machine_operations = np.empty(
             shape=(1, machines_num), dtype=np.int32).flatten()
         # 解码结果矩阵
         decode_results = np.empty(
             shape=(1, self.size), dtype=np.int32).flatten()
+        # 记录最短时间的辅助列表
+        result = np.empty(shape=(1, 1), dtype=np.int32).flatten()
         decode(self.MS, self.OS,
                decode_results,
                jobs_operations, jobs_operations_detail,
@@ -125,7 +131,8 @@ class population:
                selected_machine_time, selected_machine,
                jobs_operation, machine_operationed, machine_operations,
                begin_time_lists,  end_time_lists,
-               candidate_machine)
+               job_lists, operation_lists,
+               candidate_machine, result)
         global_score = 1/decode_results[0:100].sum()
         local_score = 1/decode_results[100:200].sum()
         random_score = 1/decode_results[200:].sum()
@@ -216,7 +223,8 @@ class population:
            select_type='tournament', tournament_M=3,
            find_type='auto', V_C_ratio=0.2,
            crossover_MS_type='uniform', crossover_OS_type='POX',
-           mutation_MS_type='best', mutation_OS_type='random'):
+           mutation_MS_type='best', mutation_OS_type='random',
+           VNS_ratio=0.1):
         '''
         遗传算法
         '''
@@ -240,6 +248,7 @@ class population:
         candidate_machine = self.data.candidate_machine
         # 各个工序的候选机器矩阵和加工时间的索引矩阵
         candidate_machine_index = self.data.candidate_machine_index
+        # VNS数量
         # 选用机器矩阵
         selected_machine = np.empty(
             shape=(jobs_num, max_operations), dtype=np.int32)
@@ -264,6 +273,12 @@ class population:
         # 各机器结束时间矩阵
         end_time_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+
+        job_lists = np.empty(
+            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+        operation_lists = np.empty(
+            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+
         # 记录机器加工的步骤数
         machine_operations = np.empty(
             shape=(1, machines_num), dtype=np.int32).flatten()
@@ -281,6 +296,8 @@ class population:
         # 初始化交叉概率
         Crossover_P = np.empty(shape=(1, self.size),
                                dtype=np.float64).flatten()
+        # 记录最短时间的辅助列表
+        result = np.empty(shape=(1, 1), dtype=np.int32).flatten()
         # 初始化辅助参数 ### end
         # 繁殖一代 ### begin
         for step in range(max_step):
@@ -294,7 +311,11 @@ class population:
                    selected_machine_time, selected_machine,
                    jobs_operation, machine_operationed, machine_operations,
                    begin_time_lists,  end_time_lists,
-                   candidate_machine)
+                   job_lists, operation_lists,
+                   candidate_machine, result)
+
+            # 邻域搜索 begin
+            # 邻域搜索 end
             # 更新最优解 ### begin
             best_poeple = np.argmin(decode_results)
             if self.best_score > decode_results[best_poeple]:
@@ -393,6 +414,8 @@ class population:
         jobs_operations_detail = self.data.jobs_operations_detail
         # 各个工序的候选机器矩阵
         candidate_machine = self.data.candidate_machine
+        # 记录最短时间的辅助列表
+        result = np.empty(shape=(1, 1), dtype=np.int32).flatten()
         # 选用机器矩阵
         selected_machine = np.empty(
             shape=(jobs_num, max_operations), dtype=np.int32)
@@ -417,6 +440,11 @@ class population:
         # 各机器结束时间矩阵
         end_time_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+
+        job_lists = np.empty(
+            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+        operation_lists = np.empty(
+            shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
         # 记录机器加工的步骤数
         machine_operations = np.empty(
             shape=(1, machines_num), dtype=np.int32).flatten()
@@ -426,7 +454,8 @@ class population:
                    selected_machine_time, selected_machine,
                    jobs_operation, machine_operationed, machine_operations,
                    begin_time_lists,  end_time_lists,
-                   candidate_machine)
+                   job_lists, operation_lists,
+                   candidate_machine, result)
         # 解码 ### end
         # 更新绘图数据 ### begin
         for machine_num in range(machines_num):
