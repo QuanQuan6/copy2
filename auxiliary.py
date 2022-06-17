@@ -1,3 +1,4 @@
+from calendar import c
 import math
 from numba import njit,  int32, int64, float64
 import numpy as np
@@ -35,7 +36,7 @@ def initial_jobs_operations_detail(jobs_operations_detail):
     初始化jobs_operations_detail变量方便计算
     '''
     return np.where(
-        jobs_operations_detail == 0, 1000000000, jobs_operations_detail)
+        jobs_operations_detail == 0, int(2147483640), jobs_operations_detail)
 
 
 @njit(
@@ -236,21 +237,68 @@ def add_one_item(list, value, length):
     list[index] = value
 
 
-@njit(int32(int32[:], int32[:],
-            int32[:], int32[:, :, :],
-            int32[:, :, :], int32[:, :, :],
-            int32[:, :], int32[:, :],
-            int32[:], int32[:], int32[:],
-            int32[:, :], int32[:, :],
-            int32[:, :, :]),
-      parallel=False)
+@njit(
+    (int32[:], int32[:], int32[:],
+     int64, int64, int64,
+     int64),
+    parallel=False)
+def add_tree_item(end_time_list, job_list, operation_list,
+                  end_time, job_num, operation_num,
+                  length):
+    if length == 0:
+        end_time_list[0] = end_time
+        job_list[0] = job_num
+        operation_list[0] = operation_num
+        return
+    index = np.searchsorted(end_time_list[0:length], end_time)
+    end_time_list[index+1:length+1] = end_time_list[index: length]
+    end_time_list[index] = end_time
+    job_list[index+1:length+1] = job_list[index: length]
+    job_list[index] = job_num
+    operation_list[index+1:length+1] = operation_list[index: length]
+    operation_list[index] = operation_num
+
+
+@njit(
+    (int32[:], int64, int64),
+    parallel=False)
+def delete_one_item(list, value, length):
+    for index in range(length):
+        if list[index] == value:
+            list[index:length-1] = list[index+1:length]
+            break
+
+
+@njit(
+    (int32[:], int32[:], int32[:], int64, int64),
+    parallel=False)
+def delete_tree_item(end_time_list, job_list, operation_list, value, length):
+    for index in range(length):
+        if end_time_list[index] == value:
+            end_time_list[index:length-1] = end_time_list[index+1:length]
+            job_list[index:length-1] = job_list[index+1:length]
+            operation_list[index:length-1] = operation_list[index+1:length]
+            break
+
+
+@njit(
+    (int32[:], int32[:],
+     int32[:], int32[:, :, :],
+     int32[:, :, :], int32[:, :, :],
+     int32[:, :], int32[:, :],
+     int32[:], int32[:], int32[:],
+     int32[:, :], int32[:, :],
+     int32[:, :], int32[:, :],
+     int32[:, :, :], int32[:]),
+    parallel=False)
 def decode_one(MS, OS,
                jobs_operations, jobs_operations_detail,
                begin_time, end_time,
                selected_machine_time, selected_machine,
                jobs_operation, machine_operationed, machine_operations,
                begin_time_lists,  end_time_lists,
-               candidate_machine):
+               job_lists, operation_lists,
+               candidate_machine, result):
     '''
     解码一个个体
     '''
@@ -274,9 +322,9 @@ def decode_one(MS, OS,
     # 初始化各工序所用时间矩阵
     selected_machine_time.fill(0)
     # 初始化各机器开始时间列表
-    begin_time_lists.fill(0)
-    # 初始化各机器结束时间列表
-    end_time_lists.fill(0)
+    # begin_time_lists.fill(0)
+    # # 初始化各机器结束时间列表
+    # end_time_lists.fill(0)
     # 初始各个机器加工步骤数
     machine_operations.fill(0)
     # 依次读取的位置
@@ -318,6 +366,8 @@ def decode_one(MS, OS,
         begin_time_list = begin_time_lists[selected_machine_num]
         # 记录所选机器加工结束时间的堆
         end_time_list = end_time_lists[selected_machine_num]
+        job_list = job_lists[selected_machine_num]
+        operation_list = operation_lists[selected_machine_num]
         # 机器没有开工过 ### begin
         if machine_operationed[selected_machine_num] == 0:
             # 是该工件的第一道工序，从0时刻开始 ### begin
@@ -330,9 +380,9 @@ def decode_one(MS, OS,
                 # 更新结束时间矩阵
                 end_time[selected_machine_num][job_num][operation_num] = selected_machine_time_o
                 # 更新该机器结束时间列表
-                add_one_item(end_time_list, selected_machine_time_o,
-                             machine_operations[selected_machine_num])
-
+                add_tree_item(end_time_list, job_list, operation_list,
+                              selected_machine_time_o, job_num, operation_num,
+                              machine_operations[selected_machine_num])
                 # 更新机器的操作数
                 machine_operations[selected_machine_num] += 1
             # 是该工件的第一道工序，从0时刻开始 ### end
@@ -352,8 +402,9 @@ def decode_one(MS, OS,
                 # 更新结束时间矩阵
                 end_time[selected_machine_num][job_num][operation_num] = end_time_o
                 # 更新该机器结束时间列表
-                add_one_item(end_time_list, end_time_o,
-                             machine_operations[selected_machine_num])
+                add_tree_item(end_time_list, job_list, operation_list,
+                              end_time_o, job_num, operation_num,
+                              machine_operations[selected_machine_num])
                 # 更新机器的操作数
                 machine_operations[selected_machine_num] += 1
             # 从上道工序的结束时间开始 ### end
@@ -394,8 +445,9 @@ def decode_one(MS, OS,
             # 更新结束时间矩阵
             end_time[selected_machine_num][job_num][operation_num] = end_time_o
             # 更新该机器结束时间列表
-            add_one_item(end_time_list, end_time_o,
-                         machine_operations[selected_machine_num])
+            add_tree_item(end_time_list, job_list, operation_list,
+                          end_time_o, job_num, operation_num,
+                          machine_operations[selected_machine_num])
             # 更新记录机器是否开始加工过的矩阵
             machine_operations[selected_machine_num] += 1
         # 机器开工过则寻找最优时间段 ### end
@@ -413,8 +465,8 @@ def decode_one(MS, OS,
         min_time = max(min_time, min_time_m)
 
     # 计算最短加工时间 ### end
+    result[0] = min(result[0], min_time)
     # 返回解
-    return min_time
 
 
 def decode(MS, OS,
@@ -424,18 +476,104 @@ def decode(MS, OS,
            selected_machine_time, selected_machine,
            jobs_operation, machine_operationed, machine_operations,
            begin_time_lists,  end_time_lists,
-           candidate_machine):
+           job_lists, operation_lists,
+           candidate_machine, result):
     '''
     解码 可修改加速但没必要
     '''
+    tem_MS = np.empty(shape=(1, MS.shape[1]), dtype=np.int32).flatten()
+    tem_OS = np.empty(shape=(1, OS.shape[1]), dtype=np.int32).flatten()
     for code_index in range(decode_results.shape[0]):
-        decode_results[code_index] = decode_one(MS[code_index], OS[code_index],
-                                                jobs_operations, jobs_operations_detail,
-                                                begin_time, end_time,
-                                                selected_machine_time, selected_machine,
-                                                jobs_operation, machine_operationed, machine_operations,
-                                                begin_time_lists,  end_time_lists,
-                                                candidate_machine)
+        result.fill(int(2147483640))
+        decode_one(MS[code_index], OS[code_index],
+                   jobs_operations, jobs_operations_detail,
+                   begin_time, end_time,
+                   selected_machine_time, selected_machine,
+                   jobs_operation, machine_operationed, machine_operations,
+                   begin_time_lists,  end_time_lists,
+                   job_lists, operation_lists,
+                   candidate_machine, result)
+
+        decode_results[code_index] = result[0]
+
+
+def VNS_one(MS, OS,
+            MS_, OS_,
+            jobs_operations, jobs_operations_detail,
+            begin_time, end_time,
+            selected_machine_time, selected_machine,
+            jobs_operation, machine_operationed, machine_operations,
+            begin_time_lists,  end_time_lists,
+            job_lists, operation_lists,
+            candidate_machine, result,
+            jobs_order, MS_positions):
+    '''
+    邻域搜索
+    '''
+    for position in range(MS.shape[0]):
+        MS_[position] = MS[position]
+        OS_[position] = OS[position]
+    # 工件个数
+    np.random.shuffle(jobs_order)
+    jobs_num = jobs_operations.shape[0]
+    for i in range(jobs_num):
+        # 当前工件编号
+        job_num = jobs_order[i]
+        for operation_num in range(jobs_operations[job_num]):
+            last_end_time = 0
+            if operation_num != 0:
+                last_end_time = end_time[job_num][operation_num-1]
+            # begin_time_o = begin_time[job_num][operation_num]
+            end_time_o = end_time[job_num][operation_num]
+            # begin_time[job_num][operation_num] = -1
+            # end_time[job_num][operation_num] = -1
+            selected_machine_num = selected_machine[job_num][operation_num]
+            # delete_one_item(begin_time_lists[selected_machine_num],
+            #                 begin_time_o, machine_operations[selected_machine_num])
+            # delete_one_item(end_time_lists[selected_machine_num],
+            #                 end_time_o, machine_operations[selected_machine_num])
+            candidate_machine_o = candidate_machine[job_num][operation_num]
+            for machine_num in candidate_machine_o:
+                if machine_num == selected_machine_num:
+                    continue
+                operation_time = jobs_operations_detail[machine_num][job_num][operation_num]
+                begin_time_list_m = begin_time_lists[machine_num]
+                end_time_list_m = end_time_lists[machine_num]
+                begin_time_m = last_end_time
+                for i in range(machine_operations[machine_num]):
+                    if last_end_time >= end_time_list_m[i]:
+                        continue
+                    # 找到了新邻域
+                    if begin_time_m + operation_time <= begin_time_list_m[i]:
+                        # 更新数据
+                        begin_time_o = begin_time[job_num][operation_num]
+                        begin_time[job_num][operation_num] = -1
+                        end_time[job_num][operation_num] = -1
+                        delete_one_item(begin_time_lists[selected_machine_num],
+                                        begin_time_o, machine_operations[selected_machine_num])
+                        delete_one_item(end_time_lists[selected_machine_num],
+                                        end_time_o, machine_operations[selected_machine_num])
+                        end_time_o = begin_time_m + operation_time
+                        begin_time[job_num][operation_num] = begin_time_m
+                        end_time[job_num][operation_num] = end_time_o
+
+                        MS_code = np.where(candidate_machine_o ==
+                                           machine_num)[0][0]
+                        MS_position = MS_positions[job_num][operation_num]
+                        MS_[MS_position] = MS_code
+                        OS_position = 0
+                        operation_count = 0
+                        for position in range(OS_.shape[0]):
+                            OS_value = OS_[position]
+                            if OS_value == job_num:
+                                if operation_count == operation_num:
+                                    OS_position = position
+                                    break
+                                OS_position += 1
+
+                    if begin_time_m[i] >= end_time_o:
+                        break
+                    begin_time_m = end_time_list_m[i]
 
 
 @njit(
