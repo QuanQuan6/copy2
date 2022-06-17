@@ -87,6 +87,7 @@ class population:
         jobs_operations_detail = self.data.jobs_operations_detail
         # 各个工序的候选机器矩阵
         candidate_machine = self.data.candidate_machine
+        candidate_machine_index = self.data.candidate_machine_index
         # 各个工序的候选机器矩阵和加工时间的索引矩阵
         # 选用机器矩阵
         selected_machine = np.empty(
@@ -132,7 +133,9 @@ class population:
                jobs_operation, machine_operationed, machine_operations,
                begin_time_lists,  end_time_lists,
                job_lists, operation_lists,
-               candidate_machine, result)
+               candidate_machine, candidate_machine_index,
+               result)
+        # 计算自适应初始化的数据 ### begin
         global_score = 1/decode_results[0:100].sum()
         local_score = 1/decode_results[100:200].sum()
         random_score = 1/decode_results[200:].sum()
@@ -144,6 +147,8 @@ class population:
         self.local_size = local_size
         self.random_size = real_size-local_size-global_size
         self.size = real_size
+        # 计算自适应初始化的数据 ### end
+        # 执行初始化
         self.__initial_OS()
         self.__initial_MS()
 
@@ -171,10 +176,10 @@ class population:
         candidate_machine_index = self.data.candidate_machine_index
         # 机器加工时间辅助矩阵
         machine_time = np.zeros(
-            shape=(1, machines_num), dtype=int).flatten()
+            shape=(1, machines_num), dtype=np.int32).flatten()
         # 全局选择初始化 ### begin
         # 随机工件矩阵
-        jobs_order = np.arange(jobs_num)
+        jobs_order = np.arange(jobs_num, dtype=np.int32).flatten()
         # 初始化对应工序的MS码矩阵
         MS_positions = np.empty(
             shape=(jobs_num, max_operations), dtype=int)
@@ -273,12 +278,12 @@ class population:
         # 各机器结束时间矩阵
         end_time_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
-
+        # 记录各机器加工的工件矩阵
         job_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+        # 记录各机器加工的工序矩阵
         operation_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
-
         # 记录机器加工的步骤数
         machine_operations = np.empty(
             shape=(1, machines_num), dtype=np.int32).flatten()
@@ -312,8 +317,8 @@ class population:
                    jobs_operation, machine_operationed, machine_operations,
                    begin_time_lists,  end_time_lists,
                    job_lists, operation_lists,
-                   candidate_machine, result)
-
+                   candidate_machine, candidate_machine_index,
+                   result)
             # 邻域搜索 begin
             # 邻域搜索 end
             # 更新最优解 ### begin
@@ -440,9 +445,10 @@ class population:
         # 各机器结束时间矩阵
         end_time_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
-
+        # 记录各机器的工件列表
         job_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
+        # 记录各机器的工序列表
         operation_lists = np.empty(
             shape=(machines_num, jobs_operations.sum()), dtype=np.int32)
         # 记录机器加工的步骤数
