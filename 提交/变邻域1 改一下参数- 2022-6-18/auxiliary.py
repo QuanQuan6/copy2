@@ -494,6 +494,51 @@ def decode(MS, OS,
         decode_results[code_index] = result[0]
 
 
+def VNS(MS, OS,
+        decode_results, code_index,
+        jobs_operations, jobs_operations_detail,
+        begin_time, end_time,
+        selected_machine_time, selected_machine,
+        jobs_operation, machine_operationed, machine_operations,
+        begin_time_lists,  end_time_lists,
+        job_lists, operation_lists,
+        candidate_machine, candidate_machine_index,
+        result, VNS_type,
+        jobs_order, MS_positions):
+    jobs_num = jobs_operations.shape[0]
+    max_operations = jobs_operations.max()
+    MS_ = np.empty(shape=(1, MS.shape[1]), dtype=np.int32).flatten()
+    OS_ = np.empty(shape=(1, OS.shape[1]), dtype=np.int32).flatten()
+    jobs_order = np.arange(jobs_num, dtype=np.int32).flatten()
+    # 初始化对应工序的MS码矩阵
+    MS_positions = np.empty(
+        shape=(jobs_num, max_operations), dtype=np.int32)
+    initial_MS_position(MS_positions, jobs_operations)
+    for index in code_index:
+        result.fill(10000000)
+        decode_one(MS[index], OS[index],
+                   jobs_operations, jobs_operations_detail,
+                   begin_time, end_time,
+                   selected_machine_time, selected_machine,
+                   jobs_operation, machine_operationed, machine_operations,
+                   begin_time_lists,  end_time_lists,
+                   job_lists, operation_lists,
+                   candidate_machine, result)
+        if VNS_type == 'one' or VNS_type == 'one_and_two':
+            VNS_one(MS[index], OS[index],
+                    MS_, OS_,
+                    decode_results, index,
+                    jobs_operations, jobs_operations_detail,
+                    begin_time, end_time,
+                    selected_machine_time, selected_machine,
+                    jobs_operation, machine_operationed, machine_operations,
+                    begin_time_lists,  end_time_lists,
+                    job_lists, operation_lists,
+                    candidate_machine, candidate_machine_index,
+                    result,
+                    jobs_order, MS_positions)
+
+
 @njit(
     (int32[:], int32[:],
      int32[:], int32[:],
@@ -521,7 +566,7 @@ def VNS_one(MS, OS,
             result,
             jobs_order, MS_positions):
     '''
-    变机器邻域搜索
+    邻域搜索
     '''
     for position in range(MS.shape[0]):
         MS_[position] = MS[position]
@@ -593,7 +638,7 @@ def VNS_one(MS, OS,
                                 if operation_count == operation_num:
                                     OS_position = position
                                     break
-                                operation_count += 1
+                                OS_position += 1
                         # 被插入的工序位置
                         old_job_num = job_lists[machine_num][i]
                         old_operation_num = operation_lists[machine_num][i]
@@ -605,7 +650,7 @@ def VNS_one(MS, OS,
                                 if operation_count == old_operation_num:
                                     old_OS_position = position
                                     break
-                                operation_count += 1
+                                old_OS_position += 1
                         # 修改OS码
                         if old_OS_position < OS_position:
                             OS_[old_OS_position:OS_position -
@@ -628,183 +673,6 @@ def VNS_one(MS, OS,
 
 
 @njit(
-    (int32[:], int32[:],
-     int32[:], int32[:],
-     int32[:], int64,
-     int32[:], int32[:, :, :],
-     int32[:, :, :], int32[:, :, :],
-     int32[:, :], int32[:, :],
-     int32[:], int32[:], int32[:],
-     int32[:, :], int32[:, :],
-     int32[:, :], int32[:, :],
-     int32[:, :, :],
-     int32[:]),
-    parallel=False)
-def VNS_two(MS, OS,
-            MS_, OS_,
-            decode_results, code_index,
-            jobs_operations, jobs_operations_detail,
-            begin_time, end_time,
-            selected_machine_time, selected_machine,
-            jobs_operation, machine_operationed, machine_operations,
-            begin_time_lists,  end_time_lists,
-            job_lists, operation_lists,
-            candidate_machine,
-            result):
-    for position in range(MS.shape[0]):
-        MS_[position] = MS[position]
-        OS_[position] = OS[position]
-    machines_num = begin_time_lists.shape[0]
-    for machine_num in range(machines_num):
-        begin_time_list_m = begin_time_lists[machine_num]
-        job_list_m = job_lists[machine_num]
-        operation_list_m = operation_lists[machine_num]
-        for operation_i in range(machine_operations[machine_num]-1):
-            first_job = job_list_m[operation_i]
-            rear_job = job_list_m[operation_i+1]
-            if first_job == rear_job:
-                continue
-            first_operation = operation_list_m[operation_i]
-            first_job_next_operation = first_operation+1
-            rear_begin_time = begin_time_list_m[operation_i+1]
-            if first_job_next_operation < jobs_operations[first_job]:
-                first_job_next_machine = selected_machine[first_job][first_job_next_operation]
-                first_job_next_begin_time = begin_time[first_job_next_machine][first_job][first_job_next_operation]
-                # 不能交换
-                if first_job_next_begin_time < rear_begin_time:
-                    continue
-            rear_operation = operation_list_m[operation_i+1]
-            rear_job_last_operation = rear_operation-1
-            first_begin_time = begin_time_list_m[operation_i]
-            if rear_job_last_operation > -1:
-                rear_job_last_machine = selected_machine[rear_job][rear_job_last_operation]
-                rear_job_last_end_time = end_time[rear_job_last_machine][rear_job][rear_job_last_operation]
-                # 不能交换
-                if rear_job_last_end_time > first_begin_time:
-                    continue
-            # 交换位置
-            first_OS_position = 0
-            first_operation_count = 0
-            for position in range(OS_.shape[0]):
-                OS_value = OS_[position]
-                if OS_value == first_job:
-                    if first_operation_count == first_operation:
-                        first_OS_position = position
-                        break
-                    first_operation_count += 1
-            rear_OS_position = 0
-            rear_operation_count = 0
-            for position in range(OS_.shape[0]):
-                OS_value = OS_[position]
-                if OS_value == rear_job:
-                    if rear_operation_count == rear_operation:
-                        rear_OS_position = position
-                        break
-                    rear_operation_count += 1
-            OS_[first_OS_position], OS_[rear_OS_position] = OS_[
-                rear_OS_position], OS_[first_OS_position]
-            # 解新码
-            decode_one(MS_, OS_,
-                       jobs_operations, jobs_operations_detail,
-                       begin_time, end_time,
-                       selected_machine_time, selected_machine,
-                       jobs_operation, machine_operationed, machine_operations,
-                       begin_time_lists,  end_time_lists,
-                       job_lists, operation_lists,
-                       candidate_machine, result)
-
-            # 更新解
-            if decode_results[code_index] > result[0]:
-                decode_results[code_index] = result[0]
-                for position in range(MS.shape[0]):
-                    OS[position] = OS_[position]
-
-
-def VNS(MS, OS,
-        decode_results, code_index,
-        jobs_operations, jobs_operations_detail,
-        begin_time, end_time,
-        selected_machine_time, selected_machine,
-        jobs_operation, machine_operationed, machine_operations,
-        begin_time_lists,  end_time_lists,
-        job_lists, operation_lists,
-        candidate_machine, candidate_machine_index,
-        result, VNS_type,
-        jobs_order, MS_positions):
-    jobs_num = jobs_operations.shape[0]
-    max_operations = jobs_operations.max()
-    MS_ = np.empty(shape=(1, MS.shape[1]), dtype=np.int32).flatten()
-    OS_ = np.empty(shape=(1, OS.shape[1]), dtype=np.int32).flatten()
-    jobs_order = np.arange(jobs_num, dtype=np.int32).flatten()
-    # 初始化对应工序的MS码矩阵
-    MS_positions = np.empty(
-        shape=(jobs_num, max_operations), dtype=np.int32)
-    initial_MS_position(MS_positions, jobs_operations)
-    for index in code_index:
-        result.fill(10000000)
-        decode_one(MS[index], OS[index],
-                   jobs_operations, jobs_operations_detail,
-                   begin_time, end_time,
-                   selected_machine_time, selected_machine,
-                   jobs_operation, machine_operationed, machine_operations,
-                   begin_time_lists,  end_time_lists,
-                   job_lists, operation_lists,
-                   candidate_machine, result)
-        if VNS_type == 'one':
-            VNS_one(MS[index], OS[index],
-                    MS_, OS_,
-                    decode_results, index,
-                    jobs_operations, jobs_operations_detail,
-                    begin_time, end_time,
-                    selected_machine_time, selected_machine,
-                    jobs_operation, machine_operationed, machine_operations,
-                    begin_time_lists,  end_time_lists,
-                    job_lists, operation_lists,
-                    candidate_machine, candidate_machine_index,
-                    result,
-                    jobs_order, MS_positions)
-        elif VNS_type == 'two':
-            VNS_two(MS[index], OS[index],
-                    MS_, OS_,
-                    decode_results, index,
-                    jobs_operations, jobs_operations_detail,
-                    begin_time, end_time,
-                    selected_machine_time, selected_machine,
-                    jobs_operation, machine_operationed, machine_operations,
-                    begin_time_lists,  end_time_lists,
-                    job_lists, operation_lists,
-                    candidate_machine,
-                    result)
-        elif VNS_type == 'both':
-            VNS_one(MS[index], OS[index],
-                    MS_, OS_,
-                    decode_results, index,
-                    jobs_operations, jobs_operations_detail,
-                    begin_time, end_time,
-                    selected_machine_time, selected_machine,
-                    jobs_operation, machine_operationed, machine_operations,
-                    begin_time_lists,  end_time_lists,
-                    job_lists, operation_lists,
-                    candidate_machine, candidate_machine_index,
-                    result,
-                    jobs_order, MS_positions)
-            VNS_two(MS[index], OS[index],
-                    MS_, OS_,
-                    decode_results, index,
-                    jobs_operations, jobs_operations_detail,
-                    begin_time, end_time,
-                    selected_machine_time, selected_machine,
-                    jobs_operation, machine_operationed, machine_operations,
-                    begin_time_lists,  end_time_lists,
-                    job_lists, operation_lists,
-                    candidate_machine,
-                    result)
-        else:
-            print('VNS_type参数生成出错')
-            return
-
-
-@njit(
     (int32[:, :], int32[:, :],
      int32[:, :], int32[:, :],
      int64,
@@ -814,7 +682,7 @@ def VNS(MS, OS,
 def tournament(MS, OS,
                new_MS, new_OS,
                tournament_M,
-               decode_results,
+               results,
                recodes):
     '''
     锦标赛选择
@@ -826,42 +694,9 @@ def tournament(MS, OS,
         selected_codes = np.random.choice(size, tournament_M)
         selected_codes = np.unique(selected_codes)
         selected_best_code = selected_codes[(np.argmin(
-            decode_results[selected_codes]))]
+            results[selected_codes]))]
         recodes[new_code_index] = selected_best_code
-    for new_code_index in range(recodes.shape[0]):
-        selected_code = recodes[new_code_index]
-        new_MS[new_code_index] = MS[selected_code]
-        new_OS[new_code_index] = OS[selected_code]
-    # 生成新种族 ### end
-
-
-@njit(
-    (int32[:, :], int32[:, :],
-     int32[:, :], int32[:, :],
-     int64,
-     int32[:],
-     int32[:]),
-    parallel=False)
-def tournament_random(MS, OS,
-                      new_MS, new_OS,
-                      tournament_M,
-                      decode_results,
-                      recodes):
-    '''
-    锦标赛选择
-    '''
-    size = MS.shape[0]
-    recodes.fill(-1)
-    # 生成新种族 ### begin
-    for new_code_index in range(size):
-        selected_codes = np.random.choice(size, tournament_M)
-        selected_codes = np.unique(selected_codes)
-        selected_best_code = selected_codes[(np.argmin(
-            decode_results[selected_codes]))]
-        recodes[new_code_index] = selected_best_code
-    code_size = recodes.shape[0]
-    np.unique(recodes)
-    recodes_size = recodes.shape[0]
+    recodes_size = np.sum(recodes >= 0)
     for new_code_index in range(recodes_size):
         selected_code = recodes[new_code_index]
         new_MS[new_code_index] = MS[selected_code]
