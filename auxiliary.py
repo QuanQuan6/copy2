@@ -1,12 +1,14 @@
 from calendar import c
 import math
+from platform import machine
 from numba import njit,  int32, int64, float64
 import numpy as np
+import random
 
 
 @njit(
     (int32[:, :], int32[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def initial_MS_position(MS_positions, jobs_operations):
     '''
     初始化对应工序的MS码矩阵
@@ -30,7 +32,7 @@ def initial_MS_position(MS_positions, jobs_operations):
 
 @njit(
     int64[:, :, :](int32[:, :, :]),
-    parallel=False)
+    parallel=False, cache=True)
 def initial_jobs_operations_detail(jobs_operations_detail):
     '''
     初始化jobs_operations_detail变量方便计算
@@ -46,7 +48,7 @@ def initial_jobs_operations_detail(jobs_operations_detail):
      int32[:], int64[:, :, :],
      int32[:, :, :], int32[:, :],
      int32[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def initial_MS_global_selection(MS,
                                 first_index, rear_index,
                                 MS_positions, jobs_order,
@@ -107,7 +109,7 @@ def initial_MS_global_selection(MS,
      int32[:], int64[:, :, :],
      int32[:, :, :], int32[:, :],
      int32[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def initial_MS_local_selection(MS, MS_,
                                first_index, rear_index,
                                jobs_operations, jobs_operations_detail,
@@ -161,7 +163,7 @@ def initial_MS_local_selection(MS, MS_,
      int64, int64,
      int32[:],
      int32[:, :, :], int32[:, :]),
-    parallel=False)
+    parallel=False, cache=True)
 def initial_MS_random_selection(MS,
                                 first_index, rear_index,
                                 jobs_operations,
@@ -199,7 +201,7 @@ def initial_MS_random_selection(MS,
 
 @njit(
     (int32[:, :],  int64,  int32[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def initial_OS(OS, size, jobs_operations):
     '''
     随机排列OS
@@ -227,7 +229,7 @@ def initial_OS(OS, size, jobs_operations):
 
 @njit(
     (int32[:], int64, int64),
-    parallel=False)
+    parallel=False, cache=True)
 def add_one_item(list, value, length):
     if length == 0:
         list[0] = value
@@ -241,7 +243,7 @@ def add_one_item(list, value, length):
     (int32[:], int32[:], int32[:],
      int64, int64, int64,
      int64),
-    parallel=False)
+    parallel=False, cache=True)
 def add_tree_item(end_time_list, job_list, operation_list,
                   end_time, job_num, operation_num,
                   length):
@@ -261,7 +263,7 @@ def add_tree_item(end_time_list, job_list, operation_list,
 
 @njit(
     (int32[:], int64, int64),
-    parallel=False)
+    parallel=False, cache=True)
 def delete_one_item(list, value, length):
     for index in range(length):
         if list[index] == value:
@@ -271,7 +273,7 @@ def delete_one_item(list, value, length):
 
 @njit(
     (int32[:], int32[:], int32[:], int64, int64),
-    parallel=False)
+    parallel=False, cache=True)
 def delete_tree_item(end_time_list, job_list, operation_list, value, length):
     for index in range(length):
         if end_time_list[index] == value:
@@ -290,7 +292,7 @@ def delete_tree_item(end_time_list, job_list, operation_list, value, length):
      int32[:, :], int32[:, :],
      int32[:, :], int32[:, :],
      int32[:, :, :], int32[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def decode_one(MS, OS,
                jobs_operations, jobs_operations_detail,
                begin_time, end_time,
@@ -507,7 +509,7 @@ def decode(MS, OS,
      int32[:, :, :], int32[:, :],
      int32[:],
      int32[:], int32[:, :]),
-    parallel=False)
+    parallel=False, cache=True)
 def VNS_one(MS, OS,
             MS_, OS_,
             decode_results, code_index,
@@ -528,10 +530,8 @@ def VNS_one(MS, OS,
         OS_[position] = OS[position]
     # 工件个数
     np.random.shuffle(jobs_order)
-    jobs_num = jobs_operations.shape[0]
-    for i in range(jobs_num):
+    for job_num in jobs_order:
         # 当前工件编号
-        job_num = jobs_order[i]
         for operation_num in range(jobs_operations[job_num]):
             # begin_time_o = begin_time[job_num][operation_num]
             # begin_time[job_num][operation_num] = -1
@@ -628,18 +628,31 @@ def VNS_one(MS, OS,
 
 
 @njit(
-    (int32[:], int32[:],
-     int32[:], int32[:],
-     int32[:], int64,
-     int32[:], int32[:, :, :],
-     int32[:, :, :], int32[:, :, :],
-     int32[:, :], int32[:, :],
-     int32[:], int32[:], int32[:],
-     int32[:, :], int32[:, :],
-     int32[:, :], int32[:, :],
-     int32[:, :, :],
-     int32[:]),
-    parallel=False)
+    (int32[:, :], int32[:], int64),
+    parallel=False, cache=True
+)
+def initial_OS_position(OS_position, OS, jobs_num):
+    job_operation = np.zeros(jobs_num, dtype=np.int32).flatten()
+    for position in range(OS.shape[0]):
+        job_num = OS[position]
+        operation_num = job_operation[job_num]
+        OS_position[job_num][operation_num] = position
+        job_operation[job_num] += 1
+
+
+# @njit(
+#     (int32[:], int32[:],
+#      int32[:], int32[:],
+#      int32[:], int64,
+#      int32[:], int32[:, :, :],
+#      int32[:, :, :], int32[:, :, :],
+#      int32[:, :], int32[:, :],
+#      int32[:], int32[:], int32[:],
+#      int32[:, :], int32[:, :],
+#      int32[:, :], int32[:, :],
+#      int32[:, :, :], int32[:],
+#      int32[:], int32[:, :]),
+#     parallel=False, cache=True)
 def VNS_two(MS, OS,
             MS_, OS_,
             decode_results, code_index,
@@ -649,75 +662,162 @@ def VNS_two(MS, OS,
             jobs_operation, machine_operationed, machine_operations,
             begin_time_lists,  end_time_lists,
             job_lists, operation_lists,
-            candidate_machine,
-            result):
+            candidate_machine, machiens_order,
+            result, OS_position):
     for position in range(MS.shape[0]):
         MS_[position] = MS[position]
         OS_[position] = OS[position]
-    machines_num = begin_time_lists.shape[0]
-    for machine_num in range(machines_num):
-        begin_time_list_m = begin_time_lists[machine_num]
-        job_list_m = job_lists[machine_num]
-        operation_list_m = operation_lists[machine_num]
-        for operation_i in range(machine_operations[machine_num]-1):
-            first_job = job_list_m[operation_i]
-            rear_job = job_list_m[operation_i+1]
-            if first_job == rear_job:
-                continue
-            first_operation = operation_list_m[operation_i]
-            first_job_next_operation = first_operation+1
-            rear_begin_time = begin_time_list_m[operation_i+1]
-            if first_job_next_operation < jobs_operations[first_job]:
-                first_job_next_machine = selected_machine[first_job][first_job_next_operation]
-                first_job_next_begin_time = begin_time[first_job_next_machine][first_job][first_job_next_operation]
-                # 不能交换
-                if first_job_next_begin_time < rear_begin_time:
-                    continue
-            rear_operation = operation_list_m[operation_i+1]
-            rear_job_last_operation = rear_operation-1
-            first_begin_time = begin_time_list_m[operation_i]
-            if rear_job_last_operation > -1:
-                rear_job_last_machine = selected_machine[rear_job][rear_job_last_operation]
-                rear_job_last_end_time = end_time[rear_job_last_machine][rear_job][rear_job_last_operation]
-                # 不能交换
-                if rear_job_last_end_time > first_begin_time:
-                    continue
-            # 交换位置
-            first_OS_position = 0
-            first_operation_count = 0
-            for position in range(OS_.shape[0]):
-                OS_value = OS_[position]
-                if OS_value == first_job:
-                    if first_operation_count == first_operation:
-                        first_OS_position = position
+    initial_OS_position(OS_position, OS_, jobs_operations.shape[0])
+    np.random.shuffle(machiens_order)
+    for i in range(machiens_order.shape[0]):
+        machine_num = machiens_order[i]
+        current_machien = machine_num
+        current_operation = machine_operations[current_machien]-1
+        block_end_operation = current_operation
+        block_first_operation = current_operation
+        while(current_operation > 0):
+            current_begin_time = begin_time_lists[current_machien][current_operation]
+            last_end_time = end_time_lists[current_machien][current_operation-1]
+            if current_begin_time == last_end_time:
+                current_operation -= 1
+            else:
+                block_first_operation = current_operation
+                block_length = block_end_operation-block_first_operation+1
+                if block_length == 2:
+                    # 不是最后或者最前
+                    if machine_operations[current_machien] != block_end_operation and block_first_operation != 0:
+                        rear_job = job_lists[current_machien][block_end_operation]
+                        first_job = job_lists[current_machien][block_end_operation-1]
+                        if rear_job != first_job:
+                            # 交换OS
+                            rear_job_operation = operation_lists[current_machien][block_end_operation]
+                            first_job_operation = operation_lists[current_machien][block_end_operation-1]
+                            rear_last_end_time = 0
+                            if rear_job_operation != 0:
+                                rear_last_machine = selected_machine[rear_job][rear_job_operation-1]
+                                rear_last_end_time = end_time[rear_last_machine][rear_job][rear_job_operation-1]
+                            first_begin_time = begin_time[current_machien][first_job][first_job_operation]
+                            first_next_begin_time = np.int32(20000000)
+                            if first_job_operation != jobs_operations[first_job]-1:
+                                first_next_machine = selected_machine[first_job][first_job_operation+1]
+                                first_next_begin_time = begin_time[first_next_machine][first_job][first_job_operation+1]
+                            rear_end_time = end_time[current_machien][rear_job][rear_job_operation]
+                            last_operation_end_time = begin_time_lists[
+                                current_machien][block_first_operation-1]
+                            new_time = max(
+                                last_operation_end_time, rear_last_end_time)
+                            if (first_begin_time > new_time) and (rear_end_time-(new_time-first_begin_time) <= first_next_begin_time):
+                                rear_OS_position = OS_position[rear_job][rear_job_operation]
+                                first_OS_position = OS_position[first_job][first_job_operation]
+                                OS_[rear_OS_position], OS_[first_OS_position] = OS_[
+                                    first_OS_position], OS_[rear_OS_position]
+                                OS_position[rear_job][rear_job_operation], OS_position[first_job][
+                                    first_job_operation] = first_OS_position, rear_OS_position
+                                decode_one(MS_, OS_,
+                                           jobs_operations, jobs_operations_detail,
+                                           begin_time, end_time,
+                                           selected_machine_time, selected_machine,
+                                           jobs_operation, machine_operationed, machine_operations,
+                                           begin_time_lists,  end_time_lists,
+                                           job_lists, operation_lists,
+                                           candidate_machine, result)
+                                # print(decode_results[code_index], result[0])
+                                if decode_results[code_index] > result[0]:
+                                    decode_results[code_index] = result[0]
+                                    OS[rear_OS_position], OS[first_OS_position] = OS[
+                                        first_OS_position], OS[rear_OS_position]
+                elif block_length > 3:
+                    if machine_operations[current_machien] != block_end_operation:
+                        rear_job = job_lists[current_machien][block_end_operation]
+                        first_job = job_lists[current_machien][block_end_operation-1]
+                        if rear_job != first_job:
+                            # 交换OS
+                            rear_job_operation = operation_lists[current_machien][block_end_operation]
+                            first_job_operation = operation_lists[current_machien][block_end_operation-1]
+                            rear_last_end_time = 0
+                            if rear_job_operation != 0:
+                                rear_last_machine = selected_machine[rear_job][rear_job_operation-1]
+                                rear_last_end_time = end_time[rear_last_machine][rear_job][rear_job_operation-1]
+                            first_begin_time = begin_time[current_machien][first_job][first_job_operation]
+                            first_next_begin_time = np.int32(20000000)
+                            if first_job_operation != jobs_operations[first_job]-1:
+                                first_next_machine = selected_machine[first_job][first_job_operation+1]
+                                first_next_begin_time = begin_time[first_next_machine][first_job][first_job_operation+1]
+                            rear_end_time = end_time[current_machien][rear_job][rear_job_operation]
+                            if (first_begin_time >= rear_last_end_time) and (rear_end_time < first_next_begin_time):
+                                rear_OS_position = OS_position[rear_job][rear_job_operation]
+                                first_OS_position = OS_position[first_job][first_job_operation]
+                                OS_[rear_OS_position], OS_[first_OS_position] = OS_[
+                                    first_OS_position], OS_[rear_OS_position]
+                                OS_position[rear_job][rear_job_operation], OS_position[first_job][
+                                    first_job_operation] = first_OS_position, rear_OS_position
+                                decode_one(MS_, OS_,
+                                           jobs_operations, jobs_operations_detail,
+                                           begin_time, end_time,
+                                           selected_machine_time, selected_machine,
+                                           jobs_operation, machine_operationed, machine_operations,
+                                           begin_time_lists,  end_time_lists,
+                                           job_lists, operation_lists,
+                                           candidate_machine, result)
+                                # print(decode_results[code_index], result[0])
+                                if decode_results[code_index] > result[0]:
+                                    decode_results[code_index] = result[0]
+                                    OS[rear_OS_position], OS[first_OS_position] = OS[
+                                        first_OS_position], OS[rear_OS_position]
+                    if block_first_operation != 0:
+                        rear_job = job_lists[current_machien][block_first_operation-1]
+                        first_job = job_lists[current_machien][block_first_operation]
+                        if rear_job != first_job:
+                            # 交换OS
+                            rear_job_operation = operation_lists[current_machien][block_first_operation-1]
+                            first_job_operation = operation_lists[current_machien][block_first_operation]
+                            rear_last_end_time = 0
+                            if rear_job_operation != 0:
+                                rear_last_machine = selected_machine[rear_job][rear_job_operation-1]
+                                rear_last_end_time = end_time[rear_last_machine][rear_job][rear_job_operation-1]
+                            first_begin_time = begin_time[current_machien][first_job][first_job_operation]
+                            first_next_begin_time = np.int32(20000000)
+                            if first_job_operation < jobs_operations[first_job]-1:
+                                first_next_machine = selected_machine[first_job][first_job_operation+1]
+                                first_next_begin_time = begin_time[first_next_machine][first_job][first_job_operation+1]
+                            rear_end_time = end_time[current_machien][rear_job][rear_job_operation]
+                            last_operation_end_time = begin_time_lists[
+                                current_machien][block_first_operation-1]
+                            new_time = max(
+                                last_operation_end_time, rear_last_end_time)
+                            if (first_begin_time > new_time) and (rear_end_time-(new_time-first_begin_time) <= first_next_begin_time):
+                                rear_OS_position = OS_position[rear_job][rear_job_operation]
+                                first_OS_position = OS_position[first_job][first_job_operation]
+                                OS_[rear_OS_position], OS_[first_OS_position] = OS_[
+                                    first_OS_position], OS_[rear_OS_position]
+                                OS_position[rear_job][rear_job_operation], OS_position[first_job][
+                                    first_job_operation] = first_OS_position, rear_OS_position
+                                decode_one(MS_, OS_,
+                                           jobs_operations, jobs_operations_detail,
+                                           begin_time, end_time,
+                                           selected_machine_time, selected_machine,
+                                           jobs_operation, machine_operationed, machine_operations,
+                                           begin_time_lists,  end_time_lists,
+                                           job_lists, operation_lists,
+                                           candidate_machine, result)
+                                # print(decode_results[code_index], result[0])
+                                if decode_results[code_index] > result[0]:
+                                    decode_results[code_index] = result[0]
+                                    OS[rear_OS_position], OS[first_OS_position] = OS[
+                                        first_OS_position], OS[rear_OS_position]
+                next_block_end_job = job_lists[current_machien][block_first_operation]
+                next_block_operation = operation_lists[current_machien][block_first_operation]-1
+                if next_block_operation < 0:
+                    current_operation = 0
+                current_machien = selected_machine[next_block_end_job][next_block_operation]
+                for operation in range(machine_operations[current_machien]):
+                    if job_lists[current_machien][operation] == next_block_end_job and operation_lists[current_machien][operation] == next_block_operation:
+                        current_operation = operation
                         break
-                    first_operation_count += 1
-            rear_OS_position = 0
-            rear_operation_count = 0
-            for position in range(OS_.shape[0]):
-                OS_value = OS_[position]
-                if OS_value == rear_job:
-                    if rear_operation_count == rear_operation:
-                        rear_OS_position = position
-                        break
-                    rear_operation_count += 1
-            OS_[first_OS_position], OS_[rear_OS_position] = OS_[
-                rear_OS_position], OS_[first_OS_position]
-            # 解新码
-            decode_one(MS_, OS_,
-                       jobs_operations, jobs_operations_detail,
-                       begin_time, end_time,
-                       selected_machine_time, selected_machine,
-                       jobs_operation, machine_operationed, machine_operations,
-                       begin_time_lists,  end_time_lists,
-                       job_lists, operation_lists,
-                       candidate_machine, result)
+                block_end_operation = current_operation
+                block_first_operation = current_operation
 
-            # 更新解
-            if decode_results[code_index] > result[0]:
-                decode_results[code_index] = result[0]
-                for position in range(MS.shape[0]):
-                    OS[position] = OS_[position]
+                # 更新下一块
 
 
 def VNS(MS, OS,
@@ -732,10 +832,14 @@ def VNS(MS, OS,
         result, VNS_type,
         jobs_order, MS_positions):
     jobs_num = jobs_operations.shape[0]
+    machines_num = begin_time.shape[0]
     max_operations = jobs_operations.max()
     MS_ = np.empty(shape=(1, MS.shape[1]), dtype=np.int32).flatten()
     OS_ = np.empty(shape=(1, OS.shape[1]), dtype=np.int32).flatten()
     jobs_order = np.arange(jobs_num, dtype=np.int32).flatten()
+    machiens_order = np.arange(machines_num, dtype=np.int32).flatten()
+    OS_position = np.empty(
+        shape=(jobs_num, max_operations), dtype=np.int32)
     # 初始化对应工序的MS码矩阵
     MS_positions = np.empty(
         shape=(jobs_num, max_operations), dtype=np.int32)
@@ -773,8 +877,8 @@ def VNS(MS, OS,
                     jobs_operation, machine_operationed, machine_operations,
                     begin_time_lists,  end_time_lists,
                     job_lists, operation_lists,
-                    candidate_machine,
-                    result)
+                    candidate_machine, machiens_order,
+                    result, OS_position)
         elif VNS_type == 'both':
             VNS_one(MS[index], OS[index],
                     MS_, OS_,
@@ -797,8 +901,8 @@ def VNS(MS, OS,
                     jobs_operation, machine_operationed, machine_operations,
                     begin_time_lists,  end_time_lists,
                     job_lists, operation_lists,
-                    candidate_machine,
-                    result)
+                    candidate_machine, machiens_order,
+                    result, OS_position)
         else:
             print('VNS_type参数生成出错')
             return
@@ -810,7 +914,7 @@ def VNS(MS, OS,
      int64,
      int32[:],
      int32[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def tournament(MS, OS,
                new_MS, new_OS,
                tournament_M,
@@ -835,18 +939,22 @@ def tournament(MS, OS,
     # 生成新种族 ### end
 
 
-@njit(
-    (int32[:, :], int32[:, :],
-     int32[:, :], int32[:, :],
-     int64,
-     int32[:],
-     int32[:]),
-    parallel=False)
+# @njit(
+#     (int32[:, :], int32[:, :],
+#      int32[:, :], int32[:, :],
+#      int64,
+#      int32[:],
+#      int32[:],
+#      int32[:],
+#      int32[:, :, :], int32[:, :]),
+#     parallel=False, cache=True)
 def tournament_random(MS, OS,
                       new_MS, new_OS,
                       tournament_M,
                       decode_results,
-                      recodes):
+                      recodes,
+                      jobs_operations,
+                      candidate_machine, candidate_machine_index):
     '''
     锦标赛选择
     '''
@@ -860,12 +968,17 @@ def tournament_random(MS, OS,
             decode_results[selected_codes]))]
         recodes[new_code_index] = selected_best_code
     code_size = recodes.shape[0]
-    np.unique(recodes)
-    recodes_size = recodes.shape[0]
+    new_recodes = np.unique(recodes)
+    recodes_size = new_recodes.shape[0]
     for new_code_index in range(recodes_size):
-        selected_code = recodes[new_code_index]
+        selected_code = new_recodes[new_code_index]
         new_MS[new_code_index] = MS[selected_code]
         new_OS[new_code_index] = OS[selected_code]
+    initial_MS_random_selection(new_MS,
+                                recodes_size, code_size,
+                                jobs_operations,
+                                candidate_machine, candidate_machine_index)
+
     # 生成新种族 ### end
 
 
@@ -875,9 +988,8 @@ def tournament_random(MS, OS,
 )
 def get_crossover_P(decode_results, best_score, crossover_P):
     av_score = decode_results.mean()
-    min_score = min(decode_results)
     for position in range(decode_results.shape[0]):
-        if decode_results[position] > av_score:
+        if decode_results[position] >= av_score:
             crossover_P[position] = 1
         elif av_score-best_score == 0:
             crossover_P[position] = 1
@@ -888,7 +1000,7 @@ def get_crossover_P(decode_results, best_score, crossover_P):
 
 @njit(
     (int32[:, :], float64[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def uniform_crossover(code, Crossover_P):
     '''
     均匀交叉
@@ -926,7 +1038,7 @@ def uniform_crossover(code, Crossover_P):
 
 @njit(
     (int32[:, :], float64[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def random_crossover(code, Crossover_P):
     '''
     随机交叉
@@ -941,7 +1053,7 @@ def random_crossover(code, Crossover_P):
 
 @njit(
     (int32[:, :], float64[:], int32[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def POX_crossover(code, Crossover_P,  jobs):
     '''
     基于工件优先顺序的交叉
@@ -973,7 +1085,7 @@ def POX_crossover(code, Crossover_P,  jobs):
 
 @njit(
     (int32[:, :], float64[:]),
-    parallel=False)
+    parallel=False, cache=True)
 def random_mutation(code, Mutation_P):
     '''
     随机变异
@@ -991,7 +1103,7 @@ def random_mutation(code, Mutation_P):
     (int32[:, :],
      int32[:, :, :], int32[:],
      int32[:]),
-    parallel=False
+    parallel=False, cache=True
 )
 def initial_best_MS(best_MS,
                     jobs_operations_detail, jobs_operations,
@@ -1009,7 +1121,7 @@ def initial_best_MS(best_MS,
     (int32[:, :], float64[:],
      int32[:, :], int32[:, :],
      int32[:]),
-    parallel=False
+    parallel=False, cache=True
 )
 def best_MS_mutations(MS, Mutation_P,
                       MS_positions, best_MS,
@@ -1027,9 +1139,35 @@ def best_MS_mutations(MS, Mutation_P,
             continue
         for job_num in range(jobs_num):
             for operation_num in range(jobs_operations[job_num]):
-                if np.random.random() >= Mutation_P[MS_index]:
+                if np.random.random() >= 0.2:
                     continue
                 # 当前工序对应的MS码位置
                 MS_position = MS_positions[job_num][operation_num]
                 # 更新MS码
                 MS[MS_index][MS_position] = best_MS[job_num][operation_num]
+
+
+@njit(
+    (int32[:, :], float64[:],
+     int32[:, :], int32[:, :],
+     int32[:]),
+    parallel=False, cache=True
+)
+def random_MS_mutations(MS, Mutation_P,
+                        MS_positions, candidate_machine_index,
+                        jobs_operations):
+    '''
+    随机机器变异
+    '''
+    MS_size, MS_length = MS.shape
+    jobs_num = jobs_operations.shape[0]
+    for MS_index in range(MS_size):
+        if np.random.random() >= Mutation_P[MS_index]:
+            continue
+        for job_num in range(jobs_num):
+            for operation_num in range(jobs_operations[job_num]):
+                if np.random.random() >= 0.2:
+                    continue
+                MS_position = MS_positions[job_num][operation_num]
+                MS[MS_index][MS_position] = np.random.randint(
+                    0, candidate_machine_index[job_num][operation_num])

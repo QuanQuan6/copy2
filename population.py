@@ -230,8 +230,9 @@ class population:
 
     def GA(self, max_step=2000, max_no_new_best=100,
            select_type='tournament', tournament_M=3,
-           find_type='auto', V_C_ratio=0.2,
+           find_type='auto', crossover=1.0, V_C_ratio=0.2,
            crossover_MS_type='uniform', crossover_OS_type='POX',
+           crossover_k1=1, crossover_k2=1,
            mutation_MS_type='best', mutation_OS_type='random',
            VNS_ratio=0.2, VNS_type='not'):
         '''
@@ -361,8 +362,19 @@ class population:
             # 选取下一代 ### begin
             recodes = np.empty(shape=(1, self.size), dtype=int).flatten()
             if select_type == 'tournament':
-                tournament(self.MS, self.OS, new_MS, new_OS,
-                           tournament_M, decode_results, recodes)
+                tournament(self.MS, self.OS,
+                           new_MS, new_OS,
+                           tournament_M,
+                           decode_results, recodes)
+            elif select_type == 'tournament_random':
+                initial_OS(new_OS, self.size, jobs_operations)
+                tournament_random(self.MS, self.OS,
+                                  new_MS, new_OS,
+                                  tournament_M,
+                                  decode_results,
+                                  recodes,
+                                  jobs_operations,
+                                  candidate_machine, candidate_machine_index)
             else:
                 print('select_type参数生成出错')
                 return
@@ -370,8 +382,8 @@ class population:
             # 计算交叉概率 ### begin
             if find_type == 'auto':
                 get_crossover_P(decode_results, self.best_score, Crossover_P)
-            elif find_type == 'max':
-                Crossover_P.fill(1)
+            elif find_type == 'const':
+                Crossover_P.fill(crossover)
             else:
                 print('find_type参数生成出错')
                 return
@@ -405,13 +417,17 @@ class population:
                 best_MS_mutations(new_MS, Mutation_P,
                                   MS_positions, best_MS,
                                   jobs_operations)
+            elif mutation_MS_type == 'random':
+                random_MS_mutations(new_MS, Mutation_P,
+                                    MS_positions, candidate_machine_index,
+                                    jobs_operations)
             else:
                 print('mutation_MS_type参数生成出错')
                 return
             # 变异MS ### end
             # 变异OS ### begin
             if mutation_OS_type == 'random':
-                random_mutation(new_OS, Crossover_P)
+                random_mutation(new_OS, Mutation_P)
             elif mutation_OS_type == 'not':
                 pass
             else:

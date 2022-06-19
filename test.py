@@ -19,7 +19,7 @@ for i in range(9):
     data_path = 'Monaldo\Fjsp\Job_Data\Brandimarte_Data\Text\Mk0{}.fjs'.format(
         i+1)
     data = read_data(data_path)
-    codes = population(data, 100)
+    codes = population(data, 200)
     codes_list.append(codes)
     index = 'Mk0{}'.format(i+1)
     index_list.append(index)
@@ -28,7 +28,7 @@ columns_index = []
 data = pd.DataFrame(data=None, index=index_list, columns=columns_index)
 
 com_times = 30
-max_step = 100
+max_step = 200
 max_no_new_best = 200
 tournament_M = 3
 
@@ -128,4 +128,4 @@ for i in range(9):
     data.loc['Mk0{}'.format(i+1), 'UPBRT_both'] = total_time/com_times
     data.loc['Mk0{}'.format(i+1), 'UPBRS_both'] = total_step/com_times
 
-data.to_csv('测试图片\one\data4.csv')
+data.to_csv('测试图片\one\data5_改进two_200_200_two.csv')
