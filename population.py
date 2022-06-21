@@ -130,7 +130,7 @@ class population:
         # 记录最短时间的辅助列表
         result = np.empty(shape=(1, 1), dtype=np.int32).flatten()
         decode(self.MS, self.OS,
-               decode_results,
+               decode_results, np.arange(self.size, dtype=np.int32).flatten(),
                jobs_operations, jobs_operations_detail,
                begin_time, end_time,
                selected_machine_time, selected_machine,
@@ -230,11 +230,11 @@ class population:
 
     def GA(self, max_step=2000, max_no_new_best=100,
            select_type='tournament', tournament_M=3,
+           memory_size=0.2,
            find_type='auto', crossover=1.0, V_C_ratio=0.2,
            crossover_MS_type='uniform', crossover_OS_type='POX',
-           crossover_k1=1, crossover_k2=1,
            mutation_MS_type='best', mutation_OS_type='random',
-           VNS_ratio=0.2, VNS_type='not'):
+           VNS_ratio=0.2, VNS_='not', VNS_type='not'):
         '''
         遗传算法
         '''
@@ -312,29 +312,48 @@ class population:
         VNS_num = math.ceil(self.size*VNS_ratio)
         # 随机工件矩阵
         jobs_order = np.arange(jobs_num, dtype=np.int32).flatten()
+        # 记忆库
+        memory_MS = np.empty(
+            shape=(math.ceil(self.size*memory_size), self.length), dtype=np.int32)
+        memory_OS = np.empty(
+            shape=(math.ceil(self.size*memory_size), self.length), dtype=np.int32)
+        # 记忆库的解
+        memory_results = np.empty(
+            shape=(1, math.ceil(self.size*memory_size)), dtype=np.int32).flatten()
+        memory_results.fill(int32(200000000))
         # 初始化辅助参数 ### end
         # 繁殖一代 ### begin
         for step in range(max_step):
             # 找不到更好的个体,结束迭代
             if max_no_new_best <= no_new_best:
                 break
-            decode(self.MS, self.OS,
-                   decode_results,
-                   jobs_operations, jobs_operations_detail,
-                   begin_time, end_time,
-                   selected_machine_time, selected_machine,
-                   jobs_operation, machine_operationed, machine_operations,
-                   begin_time_lists,  end_time_lists,
-                   job_lists, operation_lists,
-                   candidate_machine, candidate_machine_index,
-                   result)
             # 邻域搜索 begin
-            if VNS_type == 'not':
-                pass
-            else:
-                code_index = np.argsort(decode_results)[:VNS_num]
+            if VNS_ == 'not':
+                decode(self.MS, self.OS,
+                       decode_results, np.arange(
+                           self.size, dtype=np.int32).flatten(),
+                       jobs_operations, jobs_operations_detail,
+                       begin_time, end_time,
+                       selected_machine_time, selected_machine,
+                       jobs_operation, machine_operationed, machine_operations,
+                       begin_time_lists,  end_time_lists,
+                       job_lists, operation_lists,
+                       candidate_machine, candidate_machine_index,
+                       result)
+            elif VNS_ == 'normal':
+                sorted_index = np.argsort(decode_results)
+                decode(self.MS, self.OS,
+                       decode_results, sorted_index[VNS_num:],
+                       jobs_operations, jobs_operations_detail,
+                       begin_time, end_time,
+                       selected_machine_time, selected_machine,
+                       jobs_operation, machine_operationed, machine_operations,
+                       begin_time_lists,  end_time_lists,
+                       job_lists, operation_lists,
+                       candidate_machine, candidate_machine_index,
+                       result)
                 VNS(self.MS, self.OS,
-                    decode_results, code_index,
+                    decode_results, sorted_index[:VNS_num],
                     jobs_operations, jobs_operations_detail,
                     begin_time, end_time,
                     selected_machine_time, selected_machine,
@@ -344,6 +363,29 @@ class population:
                     candidate_machine, candidate_machine_index,
                     result, VNS_type,
                     jobs_order, MS_positions)
+            elif VNS_ == 'quick':
+                sorted_index = np.argsort(decode_results)
+                decode(self.MS, self.OS,
+                       decode_results, sorted_index[VNS_num:],
+                       jobs_operations, jobs_operations_detail,
+                       begin_time, end_time,
+                       selected_machine_time, selected_machine,
+                       jobs_operation, machine_operationed, machine_operations,
+                       begin_time_lists,  end_time_lists,
+                       job_lists, operation_lists,
+                       candidate_machine, candidate_machine_index,
+                       result)
+                quick_VNS(self.MS, self.OS,
+                          decode_results, sorted_index[:VNS_num],
+                          jobs_operations, jobs_operations_detail,
+                          begin_time, end_time,
+                          selected_machine_time, selected_machine,
+                          jobs_operation, machine_operationed, machine_operations,
+                          begin_time_lists,  end_time_lists,
+                          job_lists, operation_lists,
+                          candidate_machine, candidate_machine_index,
+                          result, VNS_type,
+                          jobs_order, MS_positions)
             # 邻域搜索 end
             # 更新最优解 ### begin
             best_poeple = np.argmin(decode_results)
@@ -356,6 +398,11 @@ class population:
             else:
                 no_new_best += 1
             # 更新最优解 ### end
+            # 记忆库
+            if memory_size > 0:
+                update_memory_lib(memory_MS, memory_OS, memory_results,
+                                  self.MS, self.OS, decode_results)
+            # 记忆库
             # 生成新种群 ### begin
             new_OS = np.empty(shape=self.MS.shape, dtype=int)
             new_MS = np.empty(shape=self.MS.shape, dtype=int)
@@ -375,6 +422,15 @@ class population:
                                   recodes,
                                   jobs_operations,
                                   candidate_machine, candidate_machine_index)
+            elif select_type == 'tournament_memory':
+                tournament_memory(self.MS, self.OS,
+                                  memory_MS, memory_OS,
+                                  new_MS, new_OS,
+                                  tournament_M,
+                                  decode_results, memory_results,
+                                  step, max_step
+
+                                  )
             else:
                 print('select_type参数生成出错')
                 return

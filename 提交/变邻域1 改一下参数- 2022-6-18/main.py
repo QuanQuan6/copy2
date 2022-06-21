@@ -26,5 +26,5 @@ peoples.GA(max_step=100, max_no_new_best=30,
 print('运行时间: ', time.time()-begin_time, '秒')
 print('求解最短时间: ', peoples.best_score, '秒')
 print('收敛次数: ', peoples.best_step)
-# peoples.print(peoples.best_MS, peoples.best_OS)
-# peoples.show_gantt_chart(peoples.best_MS, peoples.best_OS, figsize=(14, 4))
+peoples.print(peoples.best_MS, peoples.best_OS)
+peoples.show_gantt_chart(peoples.best_MS, peoples.best_OS, figsize=(14, 4))
