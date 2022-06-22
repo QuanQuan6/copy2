@@ -19,13 +19,13 @@ index_list = []
 #     data_path = 'Monaldo\Fjsp\Job_Data\Brandimarte_Data\Text\Mk0{}.fjs'.format(
 #         i+1)
 #     data = read_data(data_path)
-#     codes = population(data, 100)
+#     codes = population(data, 200)
 #     codes_list.append(codes)
 #     index = 'Mk0{}'.format(i+1)
 #     index_list.append(index)
 data_path = 'data.txt'
 data = read_data(data_path)
-codes = population(data, 200)
+codes = population(data, 500)
 codes_list.append(codes)
 index = 'data'
 index_list.append(index)
@@ -33,12 +33,15 @@ columns_index = []
 data = pd.DataFrame(data=None, index=index_list, columns=columns_index)
 
 com_times = 500
-max_step = 100
-max_no_new_best = 100
+max_step = 50
+max_no_new_best = 200
 tournament_M = 3
-select_type = 'tournament_memory'
-
-file_path = '测试图片\one\data_momery_200_100.csv'
+memory_size = 0.1
+select_type = 'tournament'
+crossover_MS_type = 'not'
+mutation_MS_type = 'not'
+VNS_type = 'two'
+file_path = '测试图片\\test\data_比较VNS_方式的影响_500_50_3_0.1.csv'
 
 for i in range(len(codes_list)):
     total_time = 0
@@ -50,11 +53,11 @@ for i in range(len(codes_list)):
         codes_list[i].initial()
         codes_list[i].GA(max_step=max_step, max_no_new_best=max_no_new_best,
                          select_type=select_type, tournament_M=tournament_M,
-                         memory_size=0.05,
+                         memory_size=memory_size,
                          find_type='auto', V_C_ratio=0.2,
-                         crossover_MS_type='not', crossover_OS_type='POX',
-                         mutation_MS_type='not', mutation_OS_type='random',
-                         VNS_='not', VNS_type='two', VNS_ratio=1)
+                         crossover_MS_type=crossover_MS_type, crossover_OS_type='POX',
+                         mutation_MS_type=mutation_MS_type, mutation_OS_type='random',
+                         VNS_='not', VNS_type=VNS_type, VNS_ratio=1)
         end_time = time.time()
         total_time += end_time-begin_time
         total_score += codes_list[i].best_score
@@ -75,11 +78,11 @@ for i in range(len(codes_list)):
         codes_list[i].initial()
         codes_list[i].GA(max_step=max_step, max_no_new_best=max_no_new_best,
                          select_type=select_type, tournament_M=tournament_M,
-                         memory_size=0.05,
+                         memory_size=memory_size,
                          find_type='auto', V_C_ratio=0.2,
-                         crossover_MS_type='not', crossover_OS_type='POX',
-                         mutation_MS_type='not', mutation_OS_type='random',
-                         VNS_='normal', VNS_type='two', VNS_ratio=1)
+                         crossover_MS_type=crossover_MS_type, crossover_OS_type='POX',
+                         mutation_MS_type=mutation_MS_type, mutation_OS_type='random',
+                         VNS_='normal', VNS_type=VNS_type, VNS_ratio=1)
         end_time = time.time()
         total_time += end_time-begin_time
         total_score += codes_list[i].best_score
@@ -100,11 +103,11 @@ for i in range(len(codes_list)):
         codes_list[i].initial()
         codes_list[i].GA(max_step=max_step, max_no_new_best=max_no_new_best,
                          select_type=select_type, tournament_M=tournament_M,
-                         memory_size=0.05,
+                         memory_size=memory_size,
                          find_type='auto', V_C_ratio=0.2,
-                         crossover_MS_type='not', crossover_OS_type='POX',
-                         mutation_MS_type='not', mutation_OS_type='random',
-                         VNS_='quick', VNS_type='two', VNS_ratio=1)
+                         crossover_MS_type=crossover_MS_type, crossover_OS_type='POX',
+                         mutation_MS_type=mutation_MS_type, mutation_OS_type='random',
+                         VNS_='quick', VNS_type=VNS_type, VNS_ratio=1)
         end_time = time.time()
         total_time += end_time-begin_time
         total_score += codes_list[i].best_score
