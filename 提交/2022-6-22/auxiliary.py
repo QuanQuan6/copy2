@@ -1126,6 +1126,7 @@ def quick_VNS(MS, OS,
                           job_lists, operation_lists,
                           machiens_order,
                           OS_position)
+            result.fill(10000000)
         decode_one(MS[index], OS[index],
                    jobs_operations, jobs_operations_detail,
                    begin_time, end_time,

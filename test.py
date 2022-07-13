@@ -35,13 +35,13 @@ data = pd.DataFrame(data=None, index=index_list, columns=columns_index)
 com_times = 500
 max_step = 50
 max_no_new_best = 200
-tournament_M = 3
+tournament_M = 4
 memory_size = 0.1
 select_type = 'tournament'
 crossover_MS_type = 'not'
 mutation_MS_type = 'not'
 VNS_type = 'two'
-file_path = '测试图片\\test\data_比较VNS_方式的影响_500_50_3_0.1.csv'
+file_path = '测试图片\\test\data_比较VNS_方式的影响_500_50_4.csv'
 
 for i in range(len(codes_list)):
     total_time = 0
@@ -117,6 +117,5 @@ for i in range(len(codes_list)):
     data.loc['Mk0{}'.format(i+1), 'UPBR_quick'] = total_score/com_times
     data.loc['Mk0{}'.format(i+1), 'UPBRT_quick'] = total_time/com_times
     data.loc['Mk0{}'.format(i+1), 'UPBRS_quick'] = total_step/com_times
-
 
 data.to_csv(file_path)

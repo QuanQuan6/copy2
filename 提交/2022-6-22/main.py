@@ -17,9 +17,11 @@ if __name__ == '__main__':
                find_type='auto', V_C_ratio=0.2,
                crossover_MS_type='not', crossover_OS_type='POX',
                mutation_MS_type='not', mutation_OS_type='random',
-               VNS_='quick', VNS_type='two', VNS_ratio=1)
-    # print('运行时间: ', time.time()-begin_time, '秒')
-    # print('求解最短时间: ', peoples.best_score, '秒')
-    # print('收敛次数: ', peoples.best_step)
+               VNS_='not', VNS_type='two', VNS_ratio=1)
+    print('运行时间: ', time.time()-begin_time, '秒')
+    print('求解最短时间: ', peoples.best_score, '秒')
+    print('收敛次数: ', peoples.best_step)
+    print(peoples.best_MS)
+    print(peoples.best_OS)
     peoples.print(peoples.best_MS, peoples.best_OS)
     # peoples.show_gantt_chart(peoples.best_MS, peoples.best_OS, figsize=(14, 4))

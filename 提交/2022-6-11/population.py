@@ -745,8 +745,6 @@ class population:
                 self.best_OS = self.OS[best_poeple]
                 self.best_score = results[best_poeple]
                 no_new_best = 0
-                print('step: ',step)
-                print("best_score: ", self.best_score)
             else:
                 no_new_best += 1
             # 更新最优解 ### end
