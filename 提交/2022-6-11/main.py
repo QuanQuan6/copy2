@@ -13,11 +13,12 @@ data_path = 'data.txt'
 data = read_data(data_path)
 # data.display_info(True)
 s = 0
-for i in range (100):
+count = 1
+for i in range (count):
     peoples = population(data, 60, 30, 10)
     best = peoples.GA(max_step=100,max_no_new_best=100)
     s += peoples.best_score
 print('平均运行时间: ', (time.time()-begin_time)/100, '秒')
-print('平均结果： ', s/100, '秒')
+print('平均结果： ', s/count, '秒')
 peoples.print(peoples.best_MS,peoples.best_OS)
 # peoples.show_gantt_chart(peoples.best_MS, peoples.best_OS, figsize=(14, 4))
