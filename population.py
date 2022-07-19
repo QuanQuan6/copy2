@@ -495,6 +495,100 @@ class population:
             # 生成新种群 ### end
         # 繁殖一代 ### end
 
+
+    def initial_new(self, size):
+        '''
+        自适应初始化
+        '''
+        self.best_MS = None
+        self.best_OS = None
+        self.best_score = float('inf')
+        self.best_step = float('inf')
+        self.size = size
+        self.__initial_OS()
+
+    def GA_new_no_numba(self, max_step=20000, memory_size=0.2, tournament_M=3, max_no_new_best=50):
+        
+        jobs_operations = self.data.jobs_operations
+        decode_results = np.empty(
+            shape=(1, self.size), dtype=np.int64).flatten()
+        begin_time = np.empty(
+            shape=(self.data.machines_num, self.data.jobs_num, jobs_operations.max()), dtype=np.int64)
+        end_time = np.empty(
+            shape=(self.data.machines_num, self.data.jobs_num, jobs_operations.max()), dtype=np.int64)
+        begin_time_lists = np.empty(
+            shape=(self.data.machines_num, jobs_operations), dtype=np.int64)
+        end_time_lists = np.empty(
+            shape=(self.data.machines_num, jobs_operations), dtype=np.int64)
+        job_lists = np.empty(
+            shape=(self.data.machines_num, jobs_operations), dtype=np.int64)
+        operation_lists = np.empty(
+            shape=(self.data.machines_num, jobs_operations), dtype=np.int64)
+        product_operation = np.empty(
+            shape=(1, self.data.jobs_num), dtype=np.int64).flatten()
+        selected_machine = np.empty(
+            shape=(self.data.jobs_num, jobs_operations.max()), dtype=np.int64)
+        machine_operations = np.empty(
+            shape=(1, self.data.machines_num), dtype=np.int64).flatten()
+        result = np.empty(shape=(1, 1), dtype=np.int64).flatten()
+        memory_OS = np.empty(
+            shape=(math.ceil(self.size*memory_size), self.length), dtype=np.int64)
+        # 记忆库的解
+        memory_results = np.empty(
+            shape=(1, math.ceil(self.size*memory_size)), dtype=np.int64).flatten()
+        memory_results.fill(np.int64(200000000))
+        Crossover_P = np.empty(shape=(1, self.size),
+                               dtype=np.float64).flatten()
+        no_new_best = 0
+        for step in range(max_step):
+            if max_no_new_best <= no_new_best:
+                break
+            decode_new(self.OS,
+                       decode_results, np.arange(
+                           self.size, dtype=np.int64).flatten(),
+                       self.data.machines_num,
+                       self.data.product_operation_detail,
+                       self.data.candidate_machine, self.data.candidate_machine_index,
+                       begin_time, end_time,
+                       begin_time_lists,  end_time_lists,
+                       job_lists, operation_lists,
+                       product_operation,
+                       selected_machine,
+                       machine_operations,
+                       result)
+            best_poeple = np.argmin(decode_results)
+            if self.best_score > decode_results[best_poeple]:
+                self.best_OS = self.OS[best_poeple]
+                self.best_score = decode_results[best_poeple]
+                self.best_step = step+1
+                no_new_best = 0
+                print(self.best_step)
+                print(self.best_score)
+                print()
+            else:
+                no_new_best += 1
+            # if no_new_best > 20:
+            #     self.OS_fill(self.best_OS)
+            if memory_size > 0:
+                update_memory_lib_new(memory_OS, memory_results,
+                                      self.OS, decode_results)
+            new_OS = np.empty(shape=self.OS.shape, dtype=np.int64)
+            recodes = np.empty(shape=(1, self.size), dtype=int).flatten()
+            tournament_memory_new(self.OS,
+                                  memory_OS,
+                                  new_OS,
+                                  tournament_M,
+                                  decode_results, memory_results,
+                                  step, max_step
+                                  )
+            get_crossover_P(decode_results, self.best_score, Crossover_P)
+            # Crossover_P.fill(1)
+            jobs = np.array([range(self.data.jobs_num)],
+                            dtype=np.int64).flatten()
+            POX_crossover(new_OS, Crossover_P, jobs)
+            random_mutation(new_OS, Crossover_P)
+            self.OS = new_OS
+
     def __get_data(self, MS, OS):
         # 初始化索引列表
         columns_index = ['machine_num', 'job_num',
