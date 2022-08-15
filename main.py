@@ -13,14 +13,14 @@ data = read_data(data_path)
 
 peoples = population(data)
 begin_time = time.time()
-peoples.initial(500)
-peoples.GA(max_step=20, max_no_new_best=30,
+peoples.initial(100)
+peoples.GA(max_step=100, max_no_new_best=30,
            select_type='tournament_memory', tournament_M=3,
            memory_size = 0.05,
            find_type='auto', V_C_ratio=0.2,
            crossover_MS_type='not', crossover_OS_type='POX',
            mutation_MS_type='not', mutation_OS_type='random',
-           VNS_='normal',VNS_type='one', VNS_ratio=0.05)
+           VNS_='normal',VNS_type='two', VNS_ratio=0.05)
 print('运行时间: ', time.time()-begin_time, '秒')
 print('求解最短时间: ', peoples.best_score, '秒')
 print('收敛次数: ', peoples.best_step)
