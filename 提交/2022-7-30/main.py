@@ -18,4 +18,5 @@ peoples = population(data, 500)
 peoples.GA(max_step=20, max_no_new_best=10, tournament_M=3, memory_size=0.02)
 
 peoples.print(peoples.best_OS)
+print(time.time()-begin_time)
 #peoples.show_gantt_chart(peoples.best_OS, figsize=(14, 4))

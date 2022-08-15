@@ -15,8 +15,9 @@ peoples.GA(max_step=50, max_no_new_best=30,
                find_type='auto', V_C_ratio=0.2,
                crossover_MS_type='not', crossover_OS_type='POX',
                mutation_MS_type='not', mutation_OS_type='random',
-               VNS_='normal', VNS_type='two', VNS_ratio=1)
-# print('求解最短时间: ', peoples.best_score, '秒')
-# print('收敛次数: ', peoples.best_step)
+               VNS_='normal', VNS_type='two', VNS_ratio=0.1)
+print('求解最短时间: ', peoples.best_score, '秒')
+print('收敛次数: ', peoples.best_step)
+print(begin_time-time.time())
 peoples.print(peoples.best_MS, peoples.best_OS)
 # peoples.show_gantt_chart(peoples.best_MS, peoples.best_OS, figsize=(14, 4))

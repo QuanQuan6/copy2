@@ -59,15 +59,16 @@ class population:
     最好的OS码
     '''
 
-    def __init__(self, data, size):
+    def __init__(self, data,):
         self.data = data
-        self.size = size
+        
         self.length = data.jobs_operations.sum()
 
-    def initial(self):
+    def initial(self,size):
         '''
         自适应初始化
         '''
+        self.size = size
         self.best_MS = None
         self.best_OS = None
         self.best_score = float('inf')
@@ -328,8 +329,7 @@ class population:
             if max_no_new_best <= no_new_best:
                 break
             # 邻域搜索 begin
-            if VNS_ == 'not':
-                decode(self.MS, self.OS,
+            decode(self.MS, self.OS,
                        decode_results, np.arange(
                            self.size, dtype=np.int32).flatten(),
                        jobs_operations, jobs_operations_detail,
@@ -340,18 +340,8 @@ class population:
                        job_lists, operation_lists,
                        candidate_machine, candidate_machine_index,
                        result)
-            elif VNS_ == 'normal':
+            if VNS_ == 'normal':
                 sorted_index = np.argsort(decode_results)
-                decode(self.MS, self.OS,
-                       decode_results, sorted_index[VNS_num:],
-                       jobs_operations, jobs_operations_detail,
-                       begin_time, end_time,
-                       selected_machine_time, selected_machine,
-                       jobs_operation, machine_operationed, machine_operations,
-                       begin_time_lists,  end_time_lists,
-                       job_lists, operation_lists,
-                       candidate_machine, candidate_machine_index,
-                       result)
                 VNS(self.MS, self.OS,
                     decode_results, sorted_index[:VNS_num],
                     jobs_operations, jobs_operations_detail,
@@ -365,16 +355,6 @@ class population:
                     jobs_order, MS_positions)
             elif VNS_ == 'quick':
                 sorted_index = np.argsort(decode_results)
-                decode(self.MS, self.OS,
-                       decode_results, sorted_index[VNS_num:],
-                       jobs_operations, jobs_operations_detail,
-                       begin_time, end_time,
-                       selected_machine_time, selected_machine,
-                       jobs_operation, machine_operationed, machine_operations,
-                       begin_time_lists,  end_time_lists,
-                       job_lists, operation_lists,
-                       candidate_machine, candidate_machine_index,
-                       result)
                 quick_VNS(self.MS, self.OS,
                           decode_results, sorted_index[:VNS_num],
                           jobs_operations, jobs_operations_detail,

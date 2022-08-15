@@ -10,7 +10,7 @@ from torch import positive
 
 @njit(
     (int32[:, :], int32[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def initial_MS_position(MS_positions, jobs_operations):
     '''
     初始化对应工序的MS码矩阵
@@ -34,7 +34,7 @@ def initial_MS_position(MS_positions, jobs_operations):
 
 @njit(
     int64[:, :, :](int32[:, :, :]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def initial_jobs_operations_detail(jobs_operations_detail):
     '''
     初始化jobs_operations_detail变量方便计算
@@ -50,7 +50,7 @@ def initial_jobs_operations_detail(jobs_operations_detail):
      int32[:], int64[:, :, :],
      int32[:, :, :], int32[:, :],
      int32[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def initial_MS_global_selection(MS,
                                 first_index, rear_index,
                                 MS_positions, jobs_order,
@@ -111,7 +111,7 @@ def initial_MS_global_selection(MS,
      int32[:], int64[:, :, :],
      int32[:, :, :], int32[:, :],
      int32[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def initial_MS_local_selection(MS, MS_,
                                first_index, rear_index,
                                jobs_operations, jobs_operations_detail,
@@ -165,7 +165,7 @@ def initial_MS_local_selection(MS, MS_,
      int64, int64,
      int32[:],
      int32[:, :, :], int32[:, :]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def initial_MS_random_selection(MS,
                                 first_index, rear_index,
                                 jobs_operations,
@@ -203,7 +203,7 @@ def initial_MS_random_selection(MS,
 
 # @njit(
 #     (int32[:, :],  int64,  int32[:]),
-#     parallel=False, cache=True)
+#     parallel=False, cache=False)
 def initial_OS(OS, size, jobs_operations):
     '''
     随机排列OS
@@ -229,9 +229,9 @@ def initial_OS(OS, size, jobs_operations):
         np.random.shuffle(OS[OS_index])
 
 
-# @njit(
-#     (int32[:], int64, int64),
-#     parallel=False, cache=True)
+@njit(
+    (int32[:], int64, int64),
+    parallel=False, cache=False)
 def add_one_item(list, value, length):
     if length == 0:
         list[0] = value
@@ -241,11 +241,11 @@ def add_one_item(list, value, length):
     list[index] = value
 
 
-# @njit(
-#     (int32[:], int32[:], int32[:],
-#      int64, int64, int64,
-#      int64),
-#     parallel=False, cache=True)
+@njit(
+    (int32[:], int32[:], int32[:],
+     int64, int64, int64,
+     int64),
+    parallel=False, cache=False)
 def add_tree_item(end_time_list, job_list, operation_list,
                   end_time, job_num, operation_num,
                   length):
@@ -265,7 +265,7 @@ def add_tree_item(end_time_list, job_list, operation_list,
 
 @njit(
     (int32[:], int64, int64),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def delete_one_item(list, value, length):
     for index in range(length):
         if list[index] == value:
@@ -275,7 +275,7 @@ def delete_one_item(list, value, length):
 
 @njit(
     (int32[:], int32[:], int32[:], int64, int64),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def delete_tree_item(end_time_list, job_list, operation_list, value, length):
     for index in range(length):
         if end_time_list[index] == value:
@@ -294,7 +294,7 @@ def delete_tree_item(end_time_list, job_list, operation_list, value, length):
      int32[:, :], int32[:, :],
      int32[:, :], int32[:, :],
      int32[:, :, :], int32[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def decode_one(MS, OS,
                jobs_operations, jobs_operations_detail,
                begin_time, end_time,
@@ -500,7 +500,7 @@ def decode(MS, OS,
 
 @njit(
     (int32[:, :], int32[:], int64),
-    parallel=False, cache=True
+    parallel=False, cache=False
 )
 def initial_OS_position(OS_position, OS, jobs_num):
     job_operation = np.zeros(jobs_num, dtype=np.int32).flatten()
@@ -524,7 +524,7 @@ def initial_OS_position(OS_position, OS, jobs_num):
      int32[:, :, :], int32[:, :],
      int32[:],
      int32[:], int32[:, :]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def VNS_one(MS, OS,
             MS_, OS_,
             decode_results, code_index,
@@ -655,7 +655,7 @@ def VNS_one(MS, OS,
      int32[:, :], int32[:, :],
      int32[:, :, :], int32[:, :],
      int32[:], int32[:, :], int32[:, :]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def quick_VNS_one(MS, OS,
                   jobs_operations, jobs_operations_detail,
                   end_time, selected_machine, machine_operations,
@@ -768,7 +768,7 @@ def quick_VNS_one(MS, OS,
      int32[:, :], int32[:, :],
      int32[:],
      int32[:, :]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def quick_VNS_two(OS,
                   jobs_operations,
                   begin_time, end_time,
@@ -899,7 +899,7 @@ def quick_VNS_two(OS,
      int32[:, :], int32[:, :],
      int32[:, :, :], int32[:],
      int32[:], int32[:, :]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def VNS_two(MS, OS,
             MS_, OS_,
             decode_results, code_index,
@@ -1207,7 +1207,7 @@ def VNS(MS, OS,
 @njit(
     (int32[:, :], int32[:, :], int32[:],
      int32[:, :], int32[:, :], int32[:]),
-    parallel=False, cache=True
+    parallel=False, cache=False
 )
 def update_memory_lib(memory_MS, memory_OS, memory_results,
                       MS, OS, decode_results):
@@ -1251,7 +1251,7 @@ def update_memory_lib(memory_MS, memory_OS, memory_results,
      int64,
      int32[:],
      int32[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def tournament(MS, OS,
                new_MS, new_OS,
                tournament_M,
@@ -1283,7 +1283,7 @@ def tournament(MS, OS,
      int64,
      int32[:], int32[:],
      int64, int64),
-    parallel=False, cache=True, fastmath=True)
+    parallel=False, cache=False, fastmath=True)
 def tournament_memory(MS, OS,
                       memory_MS, memory_OS,
                       new_MS, new_OS,
@@ -1328,7 +1328,7 @@ def tournament_memory(MS, OS,
      int32[:],
      int32[:],
      int32[:, :, :], int32[:, :]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def tournament_random(MS, OS,
                       new_MS, new_OS,
                       tournament_M,
@@ -1384,7 +1384,7 @@ def get_crossover_P(decode_results, best_score, crossover_P):
 
 @njit(
     (int32[:, :], float64[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def uniform_crossover(code, Crossover_P):
     '''
     均匀交叉
@@ -1422,7 +1422,7 @@ def uniform_crossover(code, Crossover_P):
 
 @njit(
     (int32[:, :], float64[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def random_crossover(code, Crossover_P):
     '''
     随机交叉
@@ -1437,7 +1437,7 @@ def random_crossover(code, Crossover_P):
 
 @njit(
     (int32[:, :], float64[:], int32[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def POX_crossover(code, Crossover_P,  jobs):
     '''
     基于工件优先顺序的交叉
@@ -1469,7 +1469,7 @@ def POX_crossover(code, Crossover_P,  jobs):
 
 @njit(
     (int32[:, :], float64[:]),
-    parallel=False, cache=True)
+    parallel=False, cache=False)
 def random_mutation(code, Mutation_P):
     '''
     随机变异
@@ -1487,7 +1487,7 @@ def random_mutation(code, Mutation_P):
     (int32[:, :],
      int32[:, :, :], int32[:],
      int32[:]),
-    parallel=False, cache=True
+    parallel=False, cache=False
 )
 def initial_best_MS(best_MS,
                     jobs_operations_detail, jobs_operations,
@@ -1505,7 +1505,7 @@ def initial_best_MS(best_MS,
     (int32[:, :], float64[:],
      int32[:, :], int32[:, :],
      int32[:]),
-    parallel=False, cache=True
+    parallel=False, cache=False
 )
 def best_MS_mutations(MS, Mutation_P,
                       MS_positions, best_MS,
@@ -1535,7 +1535,7 @@ def best_MS_mutations(MS, Mutation_P,
     (int32[:, :], float64[:],
      int32[:, :], int32[:, :],
      int32[:]),
-    parallel=False, cache=True
+    parallel=False, cache=False
 )
 def random_MS_mutations(MS, Mutation_P,
                         MS_positions, candidate_machine_index,
