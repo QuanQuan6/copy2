@@ -327,7 +327,8 @@ class population:
         for step in range(max_step):
             # 找不到更好的个体,结束迭代
             if max_no_new_best <= no_new_best:
-                break
+                self.__initial_OS()
+                self.__initial_MS()
             # 邻域搜索 begin
             decode(self.MS, self.OS,
                    decode_results, np.arange(
@@ -340,7 +341,7 @@ class population:
                    job_lists, operation_lists,
                    candidate_machine, candidate_machine_index,
                    result)
-            if VNS_ == 'normal':
+            if VNS_ == 'normal' and step > max_step*0.6:
                 sorted_index = np.argsort(decode_results)
                 VNS(self.MS, self.OS,
                     decode_results, sorted_index[:VNS_num],
@@ -353,7 +354,7 @@ class population:
                     candidate_machine, candidate_machine_index,
                     result, VNS_type,
                     jobs_order, MS_positions)
-            elif VNS_ == 'quick':
+            elif VNS_ == 'quick'and step > max_step*0.6:
                 sorted_index = np.argsort(decode_results)
                 quick_VNS(self.MS, self.OS,
                           decode_results, sorted_index[:VNS_num],
@@ -375,6 +376,9 @@ class population:
                 self.best_score = decode_results[best_poeple]
                 self.best_step = step+1
                 no_new_best = 0
+                print(self.best_score)
+                print(self.best_step)
+                print()
             else:
                 no_new_best += 1
             # 更新最优解 ### end
@@ -425,6 +429,14 @@ class population:
                 return
             # 计算交叉概率 ### end
             # 交叉MS ### begin
+            # print(Crossover_P.mean())
+            # print(decode_results.min())
+            # print(decode_results.max())
+            # print(decode_results.mean())
+            # print(memory_results.min())
+            # print(memory_results.max())
+            # print(memory_results.mean())
+            # print()
             if crossover_MS_type == 'uniform':
                 uniform_crossover(new_MS, Crossover_P)
             elif crossover_MS_type == 'not':
@@ -474,7 +486,6 @@ class population:
             self.OS = new_OS
             # 生成新种群 ### end
         # 繁殖一代 ### end
-
 
     def __get_data(self, MS, OS):
         # 初始化索引列表

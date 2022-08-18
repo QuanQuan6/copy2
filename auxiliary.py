@@ -962,8 +962,6 @@ def VNS_two(MS, OS,
                                     first_OS_position = OS_position[first_job][first_job_operation]
                                     OS_[rear_OS_position], OS_[first_OS_position] = OS_[
                                         first_OS_position], OS_[rear_OS_position]
-                                    OS_position[rear_job][rear_job_operation], OS_position[first_job][
-                                        first_job_operation] = first_OS_position, rear_OS_position
                                     decode_one(MS_, OS_,
                                                jobs_operations, jobs_operations_detail,
                                                begin_time, end_time,
@@ -976,7 +974,13 @@ def VNS_two(MS, OS,
                                         decode_results[code_index] = result[0]
                                         OS[rear_OS_position], OS[first_OS_position] = OS[
                                             first_OS_position], OS[rear_OS_position]
+                                        OS_position[rear_job][rear_job_operation], OS_position[first_job][
+                                            first_job_operation] = first_OS_position, rear_OS_position
                                         is_continue = True
+                                    else:
+                                        OS_[rear_OS_position], OS_[first_OS_position] = OS_[
+                                            first_OS_position], OS_[rear_OS_position]
+
                     elif block_length > 3:
                         if machine_operations[current_machien] != block_end_operation:
                             rear_job = job_lists[current_machien][block_end_operation]
@@ -1015,7 +1019,12 @@ def VNS_two(MS, OS,
                                         decode_results[code_index] = result[0]
                                         OS[rear_OS_position], OS[first_OS_position] = OS[
                                             first_OS_position], OS[rear_OS_position]
+                                        OS_position[rear_job][rear_job_operation], OS_position[first_job][
+                                            first_job_operation] = first_OS_position, rear_OS_position
                                         is_continue = True
+                                    else:
+                                        OS_[rear_OS_position], OS_[first_OS_position] = OS_[
+                                            first_OS_position], OS_[rear_OS_position]
                         if block_first_operation != 0:
                             rear_job = job_lists[current_machien][block_first_operation-1]
                             first_job = job_lists[current_machien][block_first_operation]
@@ -1057,7 +1066,12 @@ def VNS_two(MS, OS,
                                         decode_results[code_index] = result[0]
                                         OS[rear_OS_position], OS[first_OS_position] = OS[
                                             first_OS_position], OS[rear_OS_position]
+                                        OS_position[rear_job][rear_job_operation], OS_position[first_job][
+                                            first_job_operation] = first_OS_position, rear_OS_position
                                         is_continue = True
+                                    else:
+                                        OS_[rear_OS_position], OS_[first_OS_position] = OS_[
+                                            first_OS_position], OS_[rear_OS_position]
                     next_block_end_job = job_lists[current_machien][block_first_operation]
                     next_block_operation = operation_lists[current_machien][block_first_operation]-1
                     if next_block_operation < 0:
@@ -1221,26 +1235,27 @@ def update_memory_lib(memory_MS, memory_OS, memory_results,
                 memory_OS[max_index][position] = OS[code_index][position]
             memory_results[max_index] = decode_results[code_index]
             max_index = np.argmax(memory_results)
-        elif decode_results[code_index] == memory_results[max_index]:
-            same_indexs = np.where(
-                memory_results == decode_results[code_index])[0]
-            exchange_index = max_index
-            excheng_H = code_length+1
-            for same_index in same_indexs:
-                _H = 0
-                for position in range(code_length):
-                    if memory_MS[same_index][position] == MS[code_index][position]:
-                        _H += 1
-                if _H == 0:
-                    break
-                if _H < excheng_H:
-                    excheng_H == _H
-                    exchange_index = same_index
-            for position in range(code_length):
-                memory_MS[exchange_index][position] = MS[code_index][position]
-                memory_OS[exchange_index][position] = OS[code_index][position]
-            memory_results[exchange_index] = decode_results[code_index]
-            max_index = np.argmax(memory_results)
+        # elif decode_results[code_index] == memory_results[max_index]:
+        #     same_indexs = np.where(
+        #         memory_results == decode_results[code_index])[0]
+        #     exchange_index = max_index
+        #     # excheng_H = code_length+1
+        #     # for same_index in same_indexs:
+        #     #     _H = 0
+        #     #     for position in range(code_length):
+        #     #         if memory_MS[same_index][position] == MS[code_index][position]:
+        #     #             _H += 1
+        #     #     if _H == 0:
+        #     #         print('H == 0')
+        #     #         break
+        #     #     if _H < excheng_H:
+        #     #         excheng_H == _H
+        #     #         exchange_index = same_index
+        #     for position in range(code_length):
+        #         memory_MS[exchange_index][position] = MS[code_index][position]
+        #         memory_OS[exchange_index][position] = OS[code_index][position]
+        #     memory_results[exchange_index] = decode_results[code_index]
+        #     max_index = np.argmax(memory_results)
         else:
             break
 
