@@ -326,9 +326,6 @@ class population:
         # 繁殖一代 ### begin
         for step in range(max_step):
             # 找不到更好的个体,结束迭代
-            if max_no_new_best <= no_new_best:
-                self.__initial_OS()
-                self.__initial_MS()
             # 邻域搜索 begin
             decode(self.MS, self.OS,
                    decode_results, np.arange(
@@ -341,7 +338,7 @@ class population:
                    job_lists, operation_lists,
                    candidate_machine, candidate_machine_index,
                    result)
-            if VNS_ == 'normal' and step > max_step*0.6:
+            if VNS_ == 'normal' and (step > max_step*0.7 or no_new_best > max_no_new_best):
                 sorted_index = np.argsort(decode_results)
                 VNS(self.MS, self.OS,
                     decode_results, sorted_index[:VNS_num],
@@ -354,7 +351,7 @@ class population:
                     candidate_machine, candidate_machine_index,
                     result, VNS_type,
                     jobs_order, MS_positions)
-            elif VNS_ == 'quick'and step > max_step*0.6:
+            elif VNS_ == 'quick' and (step > max_step*0.7 or no_new_best > max_no_new_best):
                 sorted_index = np.argsort(decode_results)
                 quick_VNS(self.MS, self.OS,
                           decode_results, sorted_index[:VNS_num],
@@ -387,6 +384,12 @@ class population:
                 update_memory_lib(memory_MS, memory_OS, memory_results,
                                   self.MS, self.OS, decode_results)
             # 记忆库
+            if max_no_new_best <= no_new_best:
+                pass
+                # for i in range(len(decode_results)):
+                #     self.MS[i] = self.best_MS
+                #     self.OS[i] = self.best_OS
+                #     decode_results[i] = self.best_score
             # 生成新种群 ### begin
             new_OS = np.empty(shape=self.MS.shape, dtype=int)
             new_MS = np.empty(shape=self.MS.shape, dtype=int)

@@ -1311,6 +1311,7 @@ def tournament_memory(MS, OS,
     size = MS.shape[0]
     # 生成新种族 ### begin
     P = np.cos(math.pi*(step)/max_step/2)
+    # P = 0.5
     memory_size = memory_MS.shape[0]
     for index in range(size):
         if np.random.random() > P:
