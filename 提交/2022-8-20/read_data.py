@@ -20,11 +20,11 @@ def read_data(path):
             data_lists.pop(0)
             jobs_id = [i for i in range(jobs_num)]
             jobs_operations = np.zeros(
-                shape=(1, jobs_num), dtype=np.int64).flatten()
+                shape=(1, jobs_num), dtype=int).flatten()
             for i in range(jobs_num):
                 jobs_operations[i] = data_lists[i][0]
             jobs_operations_detail = np.zeros(
-                shape=(jobs_num, jobs_operations.max(), machines_num), dtype=np.int64)
+                shape=(jobs_num, jobs_operations.max(), machines_num), dtype=int)
             for i in range(len(data_lists)):
                 position = 1
                 list_length = len(data_lists[i])
@@ -33,18 +33,18 @@ def read_data(path):
                     machine_can_operation_num = data_lists[i][position]
                     position += 1
                     for j in range(machine_can_operation_num):
-                        machine_number_can_operation = data_lists[i][position]-1
+                        machine_number_can_operation = data_lists[i][position]
                         position += 1
                         jobs_operations_detail[i][operation_number][machine_number_can_operation] = data_lists[i][position]
                         position += 1
                     operation_number += 1
             
             candidate_machine = np.zeros(shape=(
-                jobs_num, jobs_operations.max(), machines_num), dtype=np.int64)
+                jobs_num, jobs_operations.max(), machines_num), dtype=int)
             candidate_machine_index = np.zeros(
-                shape=(jobs_num, jobs_operations.max()), dtype=np.int64)
+                shape=(jobs_num, jobs_operations.max()), dtype=int)
             candidate_machine_time = np.zeros(shape=(
-                jobs_num, jobs_operations.max(), machines_num), dtype=np.int64)
+                jobs_num, jobs_operations.max(), machines_num), dtype=int)
             for job_num in range(jobs_num):
                 candidate_machine_j = candidate_machine[job_num]
                 candidate_machine_index_j = candidate_machine_index[job_num]
